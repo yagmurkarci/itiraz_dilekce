@@ -1,0 +1,47 @@
+# Node.js Base Role Management
+
+This is a base backend project with role-based access management built using **Node.js**, **Express.js**, and **PostgreSQL**.  
+
+## 🛠 Features
+- **JWT Authentication**  
+- **Prisma ORM** for database operations  
+- **Role-Based Access Control (RBAC)** with controller-based role management  
+- **PostgreSQL** as the database  
+- **Express.js** for routing  
+- **Prisma Studio** for database management  
+
+## 📌 Technologies Used
+- **Node.js** (22.14.0)
+- **PostgreSQL** (17)
+- **Prisma ORM**
+- **Express.js**
+- **JSON Web Token (JWT)** for authentication  
+
+## 🚀 Setup & Installation  
+
+### **1️⃣ Install Dependencies**
+```sh
+npm install
+
+### **2️⃣ Database Migration
+Run the following command to apply the initial database schema:
+```sh
+npx prisma migrate dev --name initial_migration
+
+### **3️⃣ Start Prisma Studio (Optional)
+To manage the database visually:
+```sh
+npx prisma studio
+
+### **4️⃣ Start the Server
+```sh
+node app.js
+
+📌 Requirements
+Dependency	    Version
+Node.js	        22.14.0
+PostgreSQL	    17
+Prisma Client	Latest
+
+📄 License
+This project is open-source and can be used as a base for further development.
