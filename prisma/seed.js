@@ -10,6 +10,14 @@ async function main() {
     create: { roleName: 'Root' },
   });
 
+  for (const roleName of ['Öğrenci', 'Mezun', 'Akademisyen', 'Admin', 'Öğrenci İşleri']) {
+    await prisma.role.upsert({
+      where: { roleName },
+      update: {},
+      create: { roleName },
+    });
+  }
+
   const rootUser = await prisma.user.upsert({
     where: { email: 'root@example.com' },
     update: {

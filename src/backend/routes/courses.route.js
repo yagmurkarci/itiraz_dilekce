@@ -25,14 +25,24 @@ router.get('/GetCourseById/:id', dynamicAuthorize, async (req, res) => {
   }
 });
 
+router.get('/GetDepartmentCourseMap', dynamicAuthorize, async (req, res) => {
+  try {
+    const map = await courseService.getDepartmentCourseMap();
+    res.status(200).json(map);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/CreateCourse', dynamicAuthorize, async (req, res) => {
   try {
-    const { courseCode, courseName, departmentId } = req.body;
+    const { courseCode, courseName, departmentId, departmentIds } = req.body;
 
     const course = await courseService.createCourse(
       courseCode,
       courseName,
-      departmentId
+      departmentId,
+      departmentIds || []
     );
 
     res.status(201).json(course);

@@ -18,23 +18,23 @@ router.get('/GetAllUsers', dynamicAuthorize, async (req, res) => {
 
 
 router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
-    const { username, password, email, gsm } = req.body;
+    const { name, password, email, number, roleId } = req.body;
     try {
-        const newUser = await userService.createUser(username, password, email, gsm);
+        const newUser = await userService.createUser(name, password, email, number, roleId);
         res.status(201).json(newUser);  
     } catch (error) {
-        res.status(500).json({ error: error.message });  
+        res.status(400).json({ error: error.message });  
     }
 });
 
 router.put('/UpdateUserById/:id', dynamicAuthorize, async (req, res) => {
     const { id } = req.params;
-    const { userData } = req.body;
+    const { name, email, number, password, roleId } = req.body;
     try {
-        const updatedUser = await userService.updateUser(id, userData);
+        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId });
         res.status(200).json(updatedUser);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(400).json({ error: error.message });
     }
 });
 

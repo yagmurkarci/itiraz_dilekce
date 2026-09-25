@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Root Yönetim Paneli</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="loginView" class="auth-shell">
+      <div class="auth-card">
+        <div class="brand-block">
+          <div class="brand-mark">R</div>
+          <div>
+            <p class="eyebrow">Yönetim Sistemi</p>
+            <h1>Root Girişi</h1>
+          </div>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <label>
+            <span>E-posta</span>
+            <input id="email" name="email" type="email" value="root@example.com" required />
+          </label>
+
+          <label>
+            <span>Şifre</span>
+            <input id="password" name="password" type="password" value="yagmur" required />
+          </label>
+
+          <button type="submit" class="primary-button">Giriş Yap</button>
+          <p id="loginError" class="form-message error"></p>
+        </form>
+      </div>
+    </div>
+
+    <div id="dashboardView" class="dashboard hidden">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="brand-mark small">R</div>
+          <div>
+            <strong>Root</strong>
+            <small>Yönetim</small>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item active" data-page="home">Ana Sayfa</button>
+          <button class="nav-item" data-page="courses">Dersler</button>
+          <button class="nav-item" data-page="users">Kullanıcılar</button>
+          <button class="nav-item" data-page="roles">Roller</button>
+        </nav>
+
+        <button id="logoutBtn" class="logout-button">Çıkış</button>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Panel</p>
+            <h2 id="pageTitle">Ana Sayfa</h2>
+          </div>
+          <div class="status-pill">Aktif</div>
+        </header>
+
+        <div id="pageContainer">
+          <section id="homeView" class="page-panel">
+            <div class="hero-card">
+              <div>
+                <p class="eyebrow accent">Hoş geldiniz</p>
+                <h3>Yönetim ekranına eriştiniz.</h3>
+              </div>
+              <button class="primary-button small" data-page-target="courses">Ders işlemleri</button>
+            </div>
+
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span>Toplam Ders</span>
+                <strong id="courseCount">0</strong>
+              </div>
+              <div class="stat-card">
+                <span>Toplam Bölüm</span>
+                <strong id="departmentCount">0</strong>
+              </div>
+            </div>
+          </section>
+
+          <section id="coursesView" class="page-panel hidden">
+            <section class="panel form-panel">
+              <div class="panel-header">
+                <h3>Yeni Ders Ekle</h3>
+              </div>
+
+              <form id="courseForm" class="course-form">
+                <div class="field-row">
+                  <label>
+                    <span>Ders Kodu</span>
+                    <input id="courseCode" name="courseCode" placeholder="MAT101" required />
+                  </label>
+
+                  <label>
+                    <span>Ders Adı</span>
+                    <input id="courseName" name="courseName" placeholder="Matematik I" required />
+                  </label>
+                </div>
+
+                <div class="field-row single">
+                  <label>
+                    <span>Bölümler</span>
+                    <div id="departmentCheckboxList" class="department-checkbox-list"></div>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="primary-button">Dersi Kaydet</button>
+                </div>
+                <p id="courseFormMessage" class="form-message"></p>
+              </form>
+            </section>
+
+            <section class="panel table-panel">
+              <div class="panel-header">
+                <h3>Ders Listesi</h3>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Ders Kodu</th>
+                      <th>Ders Adı</th>
+                      <th>Bölüm</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="coursesTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel mapping-panel">
+              <div class="panel-header">
+                <h3>Bölümlere Göre Ders Dağılımı</h3>
+              </div>
+              <div id="departmentCourseMap" class="department-course-map"></div>
+            </section>
+          </section>
+
+          <section id="usersView" class="page-panel hidden">
+            <section class="panel form-panel">
+              <div class="panel-header">
+                <h3>Yeni Kullanıcı Ekle</h3>
+              </div>
+
+              <form id="userForm" class="course-form">
+                <div class="field-row">
+                  <label>
+                    <span>Ad Soyad</span>
+                    <input id="userName" name="name" placeholder="Yağmur Karcı" required />
+                  </label>
+
+                  <label>
+                    <span>E-posta</span>
+                    <input id="userEmail" name="email" type="email" placeholder="kullanici@example.com" required />
+                  </label>
+                </div>
+
+                <div class="field-row">
+                  <label>
+                    <span>Şifre</span>
+                    <div class="password-field">
+                      <input id="userPassword" name="password" type="password" required />
+                      <button id="togglePassword" class="password-toggle" type="button" aria-label="Şifreyi göster">Göster</button>
+                    </div>
+                  </label>
+
+                  <label>
+                    <span>Telefon / Numara</span>
+                    <input id="userNumber" name="number" type="tel" inputmode="numeric" maxlength="11" pattern="05[0-9]{9}" placeholder="05xxxxxxxxx" />
+                  </label>
+                </div>
+
+                <div class="field-row">
+                  <label>
+                    <span>Rol</span>
+                    <select id="userRole" name="roleId" required></select>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="primary-button">Kullanıcıyı Kaydet</button>
+                </div>
+                <p id="userFormMessage" class="form-message"></p>
+              </form>
+            </section>
+
+            <section class="panel form-panel">
+              <div class="panel-header">
+                <h3>Mevcut Kullanıcıyı Güncelle</h3>
+              </div>
+
+              <form id="userUpdateForm" class="course-form">
+                <div class="field-row single">
+                  <label>
+                    <span>Ad Soyad veya E-posta ile Ara</span>
+                    <input id="userSearch" type="search" placeholder="Root veya root@example.com" autocomplete="off" />
+                  </label>
+                </div>
+
+                <div class="field-row single">
+                  <label>
+                    <span>Kullanıcı</span>
+                    <select id="updateUserSelect" required>
+                      <option value="">Önce kullanıcı arayın</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="field-row">
+                  <label>
+                    <span>Ad Soyad</span>
+                    <input id="updateUserName" required />
+                  </label>
+
+                  <label>
+                    <span>E-posta</span>
+                    <input id="updateUserEmail" type="email" required />
+                  </label>
+                </div>
+
+                <div class="field-row">
+                  <label>
+                    <span>Telefon / Numara</span>
+                    <input id="updateUserNumber" type="tel" inputmode="numeric" maxlength="11" pattern="05[0-9]{9}" placeholder="05xxxxxxxxx" />
+                  </label>
+
+                  <label>
+                    <span>Rol</span>
+                    <select id="updateUserRole" required></select>
+                  </label>
+                </div>
+
+                <div class="field-row single">
+                  <label>
+                    <span>Yeni Şifre (değiştirmek istemiyorsanız boş bırakın)</span>
+                    <div class="password-field">
+                      <input id="updateUserPassword" type="password" autocomplete="new-password" />
+                      <button id="toggleUpdatePassword" class="password-toggle" type="button" aria-label="Yeni şifreyi göster">Göster</button>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="primary-button">Kullanıcıyı Güncelle</button>
+                </div>
+                <p id="userUpdateMessage" class="form-message"></p>
+              </form>
+            </section>
+
+            <section class="panel table-panel">
+              <div class="panel-header">
+                <h3>Kullanıcı Listesi</h3>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Ad Soyad</th>
+                      <th>E-posta</th>
+                      <th>Telefon</th>
+                      <th>Rol</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

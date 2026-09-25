@@ -56,6 +56,7 @@ model Department {
   createdAt      DateTime @default(now()) @map("created_at")
 
   courses         Course[]
+  courseDepartments CourseDepartment[]
   userDepartments UserDepartment[]
   requests        Request[]
 
@@ -82,12 +83,26 @@ model Course {
   departmentId Int      @map("department_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  department  Department         @relation(fields: [departmentId], references: [id])
-  userCourses UserCourse[]
-  instructors CourseInstructor[]
-  requests    Request[]
+  department        Department          @relation(fields: [departmentId], references: [id])
+  courseDepartments CourseDepartment[]
+  userCourses       UserCourse[]
+  instructors       CourseInstructor[]
+  requests          Request[]
 
   @@map("courses")
+}
+
+model CourseDepartment {
+  id           Int      @id @default(autoincrement())
+  courseId     Int      @map("course_id")
+  departmentId Int      @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, departmentId])
+  @@map("course_departments")
 }
 
 model UserCourse {

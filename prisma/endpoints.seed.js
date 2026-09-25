@@ -29,6 +29,7 @@ module.exports = async function seedEndpoints(prisma) {
     // Courses
     { endpointPath: '/GetAllCourses', method: 'GET', description: 'Tüm kursları getirir', routerPath: '/api/courses' },
     { endpointPath: '/GetCourseById/:id', method: 'GET', description: 'ID ile kurs getirir', routerPath: '/api/courses' },
+    { endpointPath: '/GetDepartmentCourseMap', method: 'GET', description: 'Bölümlere göre ders dağılımını getirir', routerPath: '/api/courses' },
     { endpointPath: '/CreateCourse', method: 'POST', description: 'Yeni kurs oluşturur', routerPath: '/api/courses' },
     { endpointPath: '/UpdateCourseById/:id', method: 'PUT', description: 'Kursu günceller', routerPath: '/api/courses' },
     { endpointPath: '/DeleteCourseById/:id', method: 'DELETE', description: 'Kursu siler', routerPath: '/api/courses' },

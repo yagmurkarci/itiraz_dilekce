@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
+const path = require('path');
 
 
 // Route'lar
@@ -29,6 +30,8 @@ app.use(express.json());
 // HTTP isteği loglaması için morgan kullanıyoruz
 app.use(morgan('dev'));
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Route'ları kullanıyoruz
 app.use('/api/auth', authRoutes); // Auth işlemleri
 app.use('/api/users', userRoutes); // Users işlemleri
@@ -39,7 +42,9 @@ app.use('/api/endpoint-roles', endpointRoleRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/courses', courseRoutes);
 
-
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

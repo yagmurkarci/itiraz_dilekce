@@ -4,118 +4,170 @@ const prisma = new PrismaClient();
 
 
 exports.getUsers = async () => {
-  try {
-    const users = await prisma.user.findMany();
-    return users;
-  } catch (error) {
-    throw new Error(error.message);
-  }
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      number: true,
+      isActive: true,
+      createdAt: true,
+      userRoles: {
+        select: {
+          role: {
+            select: { id: true, roleName: true }
+          }
+        }
+      }
+    },
+    orderBy: { id: 'asc' }
+  });
+
+  return users.map((user) => ({
+    ...user,
+    role: user.userRoles[0]?.role || null,
+    userRoles: undefined
+  }));
 };
 
-exports.createUser = async (username, password, email, gsm) => {
-  try {
-      // E-posta ve GSM numarası mevcutluk kontrol
-      const existingUser = await prisma.user.findFirst({
-          where: {
-              OR: [
-                  { email: email },
-                  { gsm: gsm }
-              ]
-          }
-      });
-
-      if (existingUser) {
-          throw new Error('Email or GSM number already in use');
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const newUser = await prisma.user.create({
-          data: {
-              username,
-              password: hashedPassword,
-              email,
-              gsm
-          }
-      });
-
-      return newUser;
-  } catch (error) {
-      throw new Error('Error creating user: ' + error.message);
+exports.createUser = async (name, password, email, number, roleId) => {
+  if (!name || !password || !email || !roleId) {
+    throw new Error('name, password, email and roleId are required');
   }
+
+  if (number && !/^05\d{9}$/.test(number)) {
+    throw new Error('Phone number must contain 11 digits and start with 05');
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    throw new Error('Email already in use');
+  }
+
+  const role = await prisma.role.findUnique({ where: { id: Number(roleId) } });
+  if (!role) {
+    throw new Error('Role not found');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  return prisma.user.create({
+    data: {
+      name,
+      password: hashedPassword,
+      email,
+      number: number || null,
+      userRoles: {
+        create: { roleId: Number(roleId) }
+      }
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      number: true,
+      isActive: true,
+      createdAt: true,
+      userRoles: {
+        select: { role: { select: { id: true, roleName: true } } }
+      }
+    }
+  });
 };
 
 exports.updateUser = async (id, userData) => {
-  try {
-    // E-posta, GSM numarası veya kullanıcı adı çakışması kontrol
-    if (userData.email) {
-      const existingEmail = await prisma.user.findFirst({
-        where: {
-          email: userData.email,
-          NOT: { id: parseInt(id) } 
-        }
-      });
+  const userId = parseInt(id, 10);
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { userRoles: { include: { role: true } } }
+  });
 
-      if (existingEmail) {
-        throw new Error('Email already in use.');
-      }
-    }
+  if (!currentUser) {
+    throw new Error('User not found');
+  }
 
-    if (userData.gsm) {
-      const existingGsm = await prisma.user.findFirst({
-        where: {
-          gsm: userData.gsm,
-          NOT: { id: parseInt(id) }
-        }
-      });
+  if (!userData.name || !userData.email || !userData.roleId) {
+    throw new Error('name, email and roleId are required');
+  }
 
-      if (existingGsm) {
-        throw new Error('GSM number already in use.');
-      }
-    }
+  if (userData.number && !/^05\d{9}$/.test(userData.number)) {
+    throw new Error('Phone number must contain 11 digits and start with 05');
+  }
 
-    if (userData.username) {
-      const existingUsername = await prisma.user.findFirst({
-        where: {
-          username: userData.username,
-          NOT: { id: parseInt(id) }
-        }
-      });
+  const existingEmail = await prisma.user.findFirst({
+    where: { email: userData.email, NOT: { id: userId } }
+  });
 
-      if (existingUsername) {
-        throw new Error('Username already in use.');
-      }
-    }
+  if (existingEmail) {
+    throw new Error('Email already in use');
+  }
 
-    // Eğer şifre güncellenmişse, şifreyi hash'le
-    if (userData.password) {
-      userData.password = await bcrypt.hash(userData.password, 10); 
-    }
+  const selectedRole = await prisma.role.findUnique({ where: { id: Number(userData.roleId) } });
+  if (!selectedRole) {
+    throw new Error('Role not found');
+  }
 
-    
-    const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) }, 
-      data: userData, 
+  const isRoot = currentUser.userRoles.some(({ role }) => role.roleName === 'Root');
+  if (isRoot && selectedRole.roleName !== 'Root') {
+    throw new Error('Root role cannot be removed');
+  }
+
+  if (!isRoot && selectedRole.roleName === 'Root') {
+    throw new Error('Root role cannot be assigned here');
+  }
+
+  const data = {
+    name: userData.name,
+    email: userData.email,
+    number: userData.number || null,
+  };
+
+  if (userData.password) {
+    data.password = await bcrypt.hash(userData.password, 10);
+  }
+
+  const updatedUser = await prisma.$transaction(async (transaction) => {
+    const updated = await transaction.user.update({
+      where: { id: userId },
+      data,
     });
 
-    return { message: "User updated", updateData: updatedUser };
-  } catch (error) {
-    throw new Error('Error updating user: ' + error.message); 
-  }
+    if (!isRoot) {
+      await transaction.userRole.deleteMany({ where: { userId } });
+      await transaction.userRole.create({
+        data: { userId, roleId: Number(userData.roleId) }
+      });
+    }
+
+    return updated;
+  });
+
+  return { message: 'User updated', updateData: updatedUser };
 };
 
 exports.deleteUser = async (id) => {
-  try {
-   
-    const deletedUser = await prisma.user.delete({
-      where: { id: parseInt(id) },
-    });
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(id, 10) },
+    include: {
+      userRoles: {
+        include: { role: true }
+      }
+    }
+  });
 
- 
-    return { message: 'User deleted successfully', user: deletedUser }; 
-  } catch (error) {
-    throw new Error('Error deleting user: ' + error.message); 
+  if (!user) {
+    throw new Error('User not found');
   }
+
+  if (user.userRoles.some(({ role }) => role.roleName === 'Root')) {
+    throw new Error('Root user cannot be deleted');
+  }
+
+  const deletedUser = await prisma.user.delete({
+    where: { id: parseInt(id, 10) },
+  });
+
+  return { message: 'User deleted successfully', user: deletedUser };
 };
 exports.getUserByUsername = async (username) => {
   try {
