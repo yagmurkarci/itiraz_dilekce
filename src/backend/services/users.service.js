@@ -3,8 +3,11 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 
-exports.getUsers = async () => {
+exports.getUsers = async (allowedRoleNames = null) => {
   const users = await prisma.user.findMany({
+    where: allowedRoleNames ? {
+      userRoles: { some: { role: { roleName: { in: allowedRoleNames } } } }
+    } : undefined,
     select: {
       id: true,
       name: true,
@@ -30,7 +33,7 @@ exports.getUsers = async () => {
   }));
 };
 
-exports.createUser = async (name, password, email, number, roleId) => {
+exports.createUser = async (name, password, email, number, roleId, allowedRoleNames = null) => {
   if (!name || !password || !email || !roleId) {
     throw new Error('name, password, email and roleId are required');
   }
@@ -47,6 +50,10 @@ exports.createUser = async (name, password, email, number, roleId) => {
   const role = await prisma.role.findUnique({ where: { id: Number(roleId) } });
   if (!role) {
     throw new Error('Role not found');
+  }
+
+  if (role.roleName === 'Root' || (allowedRoleNames && !allowedRoleNames.includes(role.roleName))) {
+    throw new Error('You cannot assign this role');
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -75,7 +82,7 @@ exports.createUser = async (name, password, email, number, roleId) => {
   });
 };
 
-exports.updateUser = async (id, userData) => {
+exports.updateUser = async (id, userData, allowedRoleNames = null) => {
   const userId = parseInt(id, 10);
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
@@ -84,6 +91,10 @@ exports.updateUser = async (id, userData) => {
 
   if (!currentUser) {
     throw new Error('User not found');
+  }
+
+  if (allowedRoleNames && !currentUser.userRoles.some(({ role }) => allowedRoleNames.includes(role.roleName))) {
+    throw new Error('You can only update student or graduate accounts');
   }
 
   if (!userData.name || !userData.email || !userData.roleId) {
@@ -112,7 +123,7 @@ exports.updateUser = async (id, userData) => {
     throw new Error('Root role cannot be removed');
   }
 
-  if (!isRoot && selectedRole.roleName === 'Root') {
+  if (!isRoot && (selectedRole.roleName === 'Root' || (allowedRoleNames && !allowedRoleNames.includes(selectedRole.roleName)))) {
     throw new Error('Root role cannot be assigned here');
   }
 
@@ -145,7 +156,7 @@ exports.updateUser = async (id, userData) => {
   return { message: 'User updated', updateData: updatedUser };
 };
 
-exports.deleteUser = async (id) => {
+exports.deleteUser = async (id, allowedRoleNames = null) => {
   const user = await prisma.user.findUnique({
     where: { id: parseInt(id, 10) },
     include: {
@@ -161,6 +172,10 @@ exports.deleteUser = async (id) => {
 
   if (user.userRoles.some(({ role }) => role.roleName === 'Root')) {
     throw new Error('Root user cannot be deleted');
+  }
+
+  if (allowedRoleNames && !user.userRoles.some(({ role }) => allowedRoleNames.includes(role.roleName))) {
+    throw new Error('You can only delete student or graduate accounts');
   }
 
   const deletedUser = await prisma.user.delete({

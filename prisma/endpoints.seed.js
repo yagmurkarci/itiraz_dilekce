@@ -43,7 +43,7 @@ module.exports = async function seedEndpoints(prisma) {
     // Endpoint Roles
     { endpointPath: '/GetAllEndpointRoles', method: 'GET', description: 'Endpointlere atanmış tüm rolleri getirmek için kullanılır', routerPath: '/api/endpoint-roles' },
     { endpointPath: '/CreateEndpointRole', method: 'POST', description: 'Endpointe yeni rol atamak için kullanılır', routerPath: '/api/endpoint-roles' },
-    { endpointPath: '/DeleteEndpointRoleById', method: 'DELETE', description: 'Endpointe atanmış rolü silmek için kullanılır', routerPath: '/api/endpoint-roles' },
+    { endpointPath: '/DeleteEndpointRoleById/:id', method: 'DELETE', description: 'Endpointe atanmış rolü silmek için kullanılır', routerPath: '/api/endpoint-roles' },
 
     // Projects (Yeni Eklenen)
     { endpointPath: '/GetAllProjects', method: 'GET', description: 'Tüm aktif projeleri getirir', routerPath: '/api/projects' },

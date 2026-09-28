@@ -89,7 +89,7 @@
           </section>
 
           <section id="coursesView" class="page-panel hidden">
-            <section class="panel form-panel">
+            <section id="courseManagementPanel" class="panel form-panel">
               <div class="panel-header">
                 <h3>Yeni Ders Ekle</h3>
               </div>
@@ -121,7 +121,7 @@
               </form>
             </section>
 
-            <section class="panel table-panel">
+            <section id="courseTablePanel" class="panel table-panel">
               <div class="panel-header">
                 <h3>Ders Listesi</h3>
               </div>
@@ -281,6 +281,62 @@
                   <tbody id="usersTableBody"></tbody>
                 </table>
               </div>
+            </section>
+          </section>
+
+          <section id="rolesView" class="page-panel hidden">
+            <section class="panel form-panel">
+              <div class="panel-header">
+                <h3>Rol Ekle / Düzenle</h3>
+              </div>
+
+              <form id="roleForm" class="course-form">
+                <label>
+                  <span>Rol Adı</span>
+                  <input id="roleName" placeholder="Örnek: Bölüm Başkanı" required />
+                </label>
+                <div class="form-actions">
+                  <button id="saveRoleButton" type="submit" class="primary-button">Rol Ekle</button>
+                  <button id="cancelRoleEdit" type="button" class="secondary-button hidden">Düzenlemeyi İptal Et</button>
+                </div>
+                <p id="roleFormMessage" class="form-message"></p>
+              </form>
+            </section>
+
+            <section class="panel table-panel">
+              <div class="panel-header">
+                <h3>Roller</h3>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Rol Adı</th>
+                      <th>Kullanıcı Sayısı</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rolesTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel permissions-panel">
+              <div class="panel-header">
+                <h3>Rol Yetkileri</h3>
+              </div>
+              <div class="field-row single">
+                <label>
+                  <span>Yetkileri düzenlenecek rol</span>
+                  <select id="permissionRoleSelect"></select>
+                </label>
+              </div>
+              <div id="rolePermissionList" class="role-permission-list"></div>
+              <div class="form-actions">
+                <button id="savePermissionsButton" type="button" class="primary-button">Yetkileri Kaydet</button>
+              </div>
+              <p id="permissionMessage" class="form-message"></p>
             </section>
           </section>
         </div>

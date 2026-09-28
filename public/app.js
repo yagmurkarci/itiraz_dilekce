@@ -30,6 +30,17 @@ const pageTitle = document.getElementById('pageTitle');
 const homeView = document.getElementById('homeView');
 const coursesView = document.getElementById('coursesView');
 const usersView = document.getElementById('usersView');
+const rolesView = document.getElementById('rolesView');
+const courseManagementPanel = document.getElementById('courseManagementPanel');
+const roleForm = document.getElementById('roleForm');
+const roleFormMessage = document.getElementById('roleFormMessage');
+const rolesTableBody = document.getElementById('rolesTableBody');
+const permissionRoleSelect = document.getElementById('permissionRoleSelect');
+const rolePermissionList = document.getElementById('rolePermissionList');
+const permissionMessage = document.getElementById('permissionMessage');
+const saveRoleButton = document.getElementById('saveRoleButton');
+const cancelRoleEdit = document.getElementById('cancelRoleEdit');
+const savePermissionsButton = document.getElementById('savePermissionsButton');
 const navButtons = document.querySelectorAll('.nav-item');
 
 const state = {
@@ -37,6 +48,10 @@ const state = {
   courses: [],
   roles: [],
   users: [],
+  endpoints: [],
+  endpointRoles: [],
+  editingRoleId: null,
+  roleNames: [],
   activePage: 'home',
 };
 
@@ -53,6 +68,41 @@ function setToken(token) {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function getSessionRoleNames() {
+  try {
+    const payload = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const decoded = JSON.parse(new TextDecoder().decode(bytes));
+    return (decoded.roles || []).map(({ roleName }) => roleName);
+  } catch {
+    return [];
+  }
+}
+
+function hasSessionRole(...roleNames) {
+  return roleNames.some((roleName) => state.roleNames.includes(roleName));
+}
+
+function applyRoleVisibility() {
+  const canViewCourses = hasSessionRole('Root', 'Admin', 'Öğrenci', 'Mezun', 'Akademisyen');
+  const canManageUsers = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+  const canManageRoles = hasSessionRole('Root');
+
+  navButtons.forEach((button) => {
+    const visible = button.dataset.page === 'home'
+      || (button.dataset.page === 'courses' && canViewCourses)
+      || (button.dataset.page === 'users' && canManageUsers)
+      || (button.dataset.page === 'roles' && canManageRoles);
+    button.classList.toggle('hidden', !visible);
+  });
+
+  courseManagementPanel.classList.toggle('hidden', !hasSessionRole('Root', 'Admin'));
+  document.querySelector('[data-page-target="courses"]')?.classList.toggle('hidden', !canViewCourses);
+  courseCount.closest('.stat-card').classList.toggle('hidden', !canViewCourses);
+  departmentCount.closest('.stat-card').classList.toggle('hidden', !canViewCourses);
+}
+
 function showLogin() {
   dashboardView.classList.add('hidden');
   loginView.classList.remove('hidden');
@@ -64,6 +114,11 @@ function showDashboard() {
 }
 
 function setPage(page) {
+  const pageButton = [...navButtons].find((button) => button.dataset.page === page);
+  if (page !== 'home' && (!pageButton || pageButton.classList.contains('hidden'))) {
+    page = 'home';
+  }
+
   state.activePage = page;
 
   const pageMap = {
@@ -77,6 +132,7 @@ function setPage(page) {
   homeView.classList.toggle('hidden', page !== 'home');
   coursesView.classList.toggle('hidden', page !== 'courses');
   usersView.classList.toggle('hidden', page !== 'users');
+  rolesView.classList.toggle('hidden', page !== 'roles');
 
   navButtons.forEach((button) => {
     button.classList.toggle('active', button.dataset.page === page);
@@ -128,16 +184,114 @@ async function loadDepartments() {
 async function loadRoles() {
   const roles = await apiFetch('/roles/GetAllRoles');
   state.roles = roles;
+  const selectableRoles = roles.filter((role) => role.roleName !== 'Root');
+  const userFormRoles = hasSessionRole('Öğrenci İşleri')
+    ? selectableRoles.filter((role) => ['Öğrenci', 'Mezun'].includes(role.roleName))
+    : selectableRoles;
   userRole.innerHTML = roles
-    .filter((role) => role.roleName !== 'Root')
+    .filter((role) => userFormRoles.some(({ id }) => id === role.id))
     .map((role) => `<option value="${role.id}">${role.roleName}</option>`)
     .join('');
   setUpdateRoleOptions();
+  if (hasSessionRole('Root')) {
+    renderRoles();
+    renderPermissionRoleOptions();
+  }
+}
+
+async function loadRolePermissions() {
+  const [endpoints, endpointRoles] = await Promise.all([
+    apiFetch('/endpoints/GetAllEndpoints'),
+    apiFetch('/endpoint-roles/GetAllEndpointRoles'),
+  ]);
+  state.endpoints = endpoints;
+  state.endpointRoles = endpointRoles;
+  renderRolePermissions();
+}
+
+function renderRoles() {
+  rolesTableBody.innerHTML = state.roles
+    .map((role) => {
+      const userCount = state.users.filter((user) => user.role?.id === role.id).length;
+      const action = role.roleName === 'Root'
+        ? '<span class="protected-user">Koruma</span>'
+        : `<div class="role-actions"><button class="secondary-button" type="button" data-edit-role="${role.id}">Düzenle</button><button class="delete-btn" type="button" data-delete-role="${role.id}">Sil</button></div>`;
+
+      return `
+        <tr>
+          <td>${role.id}</td>
+          <td>${role.roleName}</td>
+          <td>${userCount}</td>
+          <td>${action}</td>
+        </tr>
+      `;
+    })
+    .join('');
+}
+
+function renderPermissionRoleOptions() {
+  const previousRoleId = permissionRoleSelect.value;
+  permissionRoleSelect.innerHTML = state.roles
+    .map((role) => `<option value="${role.id}">${role.roleName}</option>`)
+    .join('');
+
+  const defaultRole = state.roles.find((role) => role.roleName !== 'Root') || state.roles[0];
+  permissionRoleSelect.value = state.roles.some((role) => String(role.id) === previousRoleId)
+    ? previousRoleId
+    : String(defaultRole?.id || '');
+  renderRolePermissions();
+}
+
+function renderRolePermissions() {
+  const roleId = Number(permissionRoleSelect.value);
+  const role = state.roles.find((item) => item.id === roleId);
+  const isRoot = role?.roleName === 'Root';
+  const assignedEndpointIds = new Set(
+    state.endpointRoles
+      .filter((assignment) => assignment.roleId === roleId)
+      .map((assignment) => assignment.endpointId)
+  );
+  const groups = state.endpoints.reduce((result, endpoint) => {
+    const groupName = endpoint.routerPath || 'Diğer';
+    (result[groupName] ||= []).push(endpoint);
+    return result;
+  }, {});
+
+  rolePermissionList.innerHTML = Object.entries(groups)
+    .map(([groupName, endpoints]) => `
+      <section class="permission-group">
+        <h4>${groupName}</h4>
+        <div class="permission-endpoints">
+          ${endpoints.map((endpoint) => `
+            <label class="permission-item">
+              <input type="checkbox" data-endpoint-id="${endpoint.id}" ${assignedEndpointIds.has(endpoint.id) ? 'checked' : ''} ${isRoot ? 'disabled' : ''} />
+              <span><strong>${endpoint.method}</strong> ${endpoint.endpointPath}<small>${endpoint.description || ''}</small></span>
+            </label>
+          `).join('')}
+        </div>
+      </section>
+    `)
+    .join('');
+
+  savePermissionsButton.disabled = isRoot || !role;
+  permissionMessage.textContent = isRoot ? 'Root rolünün tüm sistem yetkileri korunur ve değiştirilemez.' : '';
+  permissionMessage.className = 'form-message';
+}
+
+function resetRoleForm() {
+  state.editingRoleId = null;
+  roleForm.reset();
+  saveRoleButton.textContent = 'Rol Ekle';
+  cancelRoleEdit.classList.add('hidden');
 }
 
 function setUpdateRoleOptions(selectedRoleId = '') {
   const selectedRole = state.roles.find((role) => role.id === Number(selectedRoleId));
-  const roles = state.roles.filter((role) => role.roleName !== 'Root' || selectedRole?.roleName === 'Root');
+  const roles = state.roles.filter((role) => {
+    if (role.roleName === 'Root') return selectedRole?.roleName === 'Root';
+    if (hasSessionRole('Öğrenci İşleri')) return ['Öğrenci', 'Mezun'].includes(role.roleName);
+    return true;
+  });
 
   updateUserRole.innerHTML = roles
     .map((role) => `<option value="${role.id}" ${role.id === Number(selectedRoleId) ? 'selected' : ''}>${role.roleName}</option>`)
@@ -188,6 +342,7 @@ async function loadUsers() {
     .join('');
 
   renderUserSearchResults();
+  if (hasSessionRole('Root')) renderRoles();
 }
 
 async function loadCourses() {
@@ -208,7 +363,7 @@ async function loadCourses() {
             <td>${course.courseCode}</td>
             <td>${course.courseName}</td>
             <td>${departmentText}</td>
-            <td><button class="delete-btn" data-id="${course.id}">Sil</button></td>
+            <td>${hasSessionRole('Root', 'Admin') ? `<button class="delete-btn" data-id="${course.id}">Sil</button>` : ''}</td>
           </tr>
         `;
       }
@@ -236,7 +391,21 @@ async function loadCourses() {
 
 async function initializeDashboard() {
   try {
-    await Promise.all([loadDepartments(), loadCourses(), loadRoles(), loadUsers()]);
+    state.roleNames = getSessionRoleNames();
+    applyRoleVisibility();
+
+    const tasks = [];
+    if (hasSessionRole('Root', 'Admin', 'Öğrenci', 'Mezun', 'Akademisyen')) {
+      tasks.push(loadDepartments(), loadCourses());
+    }
+    if (hasSessionRole('Root', 'Admin', 'Öğrenci İşleri')) {
+      tasks.push(loadRoles(), loadUsers());
+    }
+    if (hasSessionRole('Root')) {
+      tasks.push(loadRolePermissions());
+    }
+
+    await Promise.all(tasks);
     showDashboard();
     setPage('home');
   } catch (error) {
@@ -334,6 +503,101 @@ userForm.addEventListener('submit', async (event) => {
   } catch (error) {
     userFormMessage.textContent = error.message;
     userFormMessage.className = 'form-message error';
+  }
+});
+
+roleForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  roleFormMessage.textContent = '';
+
+  const roleName = document.getElementById('roleName').value.trim();
+  const isEditing = Boolean(state.editingRoleId);
+
+  try {
+    await apiFetch(isEditing ? `/roles/UpdateRoleById/${state.editingRoleId}` : '/roles/CreateRole', {
+      method: isEditing ? 'PUT' : 'POST',
+      body: JSON.stringify({ roleName }),
+    });
+
+    roleFormMessage.textContent = isEditing ? 'Rol adı güncellendi.' : 'Rol eklendi.';
+    roleFormMessage.className = 'form-message success';
+    resetRoleForm();
+    await Promise.all([loadRoles(), loadRolePermissions()]);
+  } catch (error) {
+    roleFormMessage.textContent = error.message;
+    roleFormMessage.className = 'form-message error';
+  }
+});
+
+rolesTableBody.addEventListener('click', async (event) => {
+  const deleteButton = event.target.closest('[data-delete-role]');
+  if (deleteButton) {
+    const role = state.roles.find((item) => item.id === Number(deleteButton.dataset.deleteRole));
+    if (!role || role.roleName === 'Root') return;
+    if (!window.confirm(`"${role.roleName}" rolünü silmek istiyor musunuz?`)) return;
+
+    try {
+      await apiFetch(`/roles/DeleteRoleById/${role.id}`, { method: 'DELETE' });
+      if (state.editingRoleId === role.id) resetRoleForm();
+      roleFormMessage.textContent = `"${role.roleName}" rolü silindi.`;
+      roleFormMessage.className = 'form-message success';
+      await Promise.all([loadRoles(), loadRolePermissions()]);
+    } catch (error) {
+      roleFormMessage.textContent = error.message;
+      roleFormMessage.className = 'form-message error';
+    }
+    return;
+  }
+
+  const button = event.target.closest('[data-edit-role]');
+  if (!button) return;
+
+  const role = state.roles.find((item) => item.id === Number(button.dataset.editRole));
+  if (!role || role.roleName === 'Root') return;
+
+  state.editingRoleId = role.id;
+  document.getElementById('roleName').value = role.roleName;
+  saveRoleButton.textContent = 'Rolü Güncelle';
+  cancelRoleEdit.classList.remove('hidden');
+  roleFormMessage.textContent = '';
+  document.getElementById('roleName').focus();
+});
+
+cancelRoleEdit.addEventListener('click', resetRoleForm);
+permissionRoleSelect.addEventListener('change', renderRolePermissions);
+
+savePermissionsButton.addEventListener('click', async () => {
+  const roleId = Number(permissionRoleSelect.value);
+  const checkedEndpointIds = new Set(
+    [...rolePermissionList.querySelectorAll('input[data-endpoint-id]:checked')]
+      .map((checkbox) => Number(checkbox.dataset.endpointId))
+  );
+  const currentAssignments = state.endpointRoles.filter((assignment) => assignment.roleId === roleId);
+  const currentEndpointIds = new Set(currentAssignments.map((assignment) => assignment.endpointId));
+  const toAdd = [...checkedEndpointIds].filter((endpointId) => !currentEndpointIds.has(endpointId));
+  const toRemove = currentAssignments.filter((assignment) => !checkedEndpointIds.has(assignment.endpointId));
+
+  permissionMessage.textContent = '';
+
+  try {
+    await Promise.all([
+      ...toAdd.map((endpointId) => apiFetch('/endpoint-roles/CreateEndpointRole', {
+        method: 'POST',
+        body: JSON.stringify({ endpointId, roleId }),
+      })),
+      ...toRemove.map((assignment) => apiFetch(`/endpoint-roles/DeleteEndpointRoleById/${assignment.id}`, {
+        method: 'DELETE',
+      })),
+    ]);
+
+    state.endpointRoles = await apiFetch('/endpoint-roles/GetAllEndpointRoles');
+    renderRolePermissions();
+    permissionMessage.textContent = 'Rol yetkileri kaydedildi.';
+    permissionMessage.className = 'form-message success';
+  } catch (error) {
+    await loadRolePermissions();
+    permissionMessage.textContent = error.message;
+    permissionMessage.className = 'form-message error';
   }
 });
 

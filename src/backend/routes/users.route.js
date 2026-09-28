@@ -6,10 +6,16 @@ const dynamicAuthorize = require('../middleware/dynamic-authorize');
 
 router.use(verifyToken); 
 
+const getStudentAffairsScope = (user) => (
+    user.roles?.some(({ roleName }) => roleName === 'Öğrenci İşleri')
+        ? ['Öğrenci', 'Mezun']
+        : null
+);
+
 router.get('/GetAllUsers', dynamicAuthorize, async (req, res) => {
 
     try {
-        const users = await userService.getUsers();
+        const users = await userService.getUsers(getStudentAffairsScope(req.user));
         res.status(200).json(users); 
     } catch (error) {
         res.status(500).json({ error: error.message }); 
@@ -20,7 +26,7 @@ router.get('/GetAllUsers', dynamicAuthorize, async (req, res) => {
 router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
     const { name, password, email, number, roleId } = req.body;
     try {
-        const newUser = await userService.createUser(name, password, email, number, roleId);
+        const newUser = await userService.createUser(name, password, email, number, roleId, getStudentAffairsScope(req.user));
         res.status(201).json(newUser);  
     } catch (error) {
         res.status(400).json({ error: error.message });  
@@ -31,7 +37,7 @@ router.put('/UpdateUserById/:id', dynamicAuthorize, async (req, res) => {
     const { id } = req.params;
     const { name, email, number, password, roleId } = req.body;
     try {
-        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId });
+        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId }, getStudentAffairsScope(req.user));
         res.status(200).json(updatedUser);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -41,10 +47,10 @@ router.put('/UpdateUserById/:id', dynamicAuthorize, async (req, res) => {
 router.delete('/DeleteUserById/:id', dynamicAuthorize, async (req, res) => {
     const { id } = req.params;
     try {
-        const deletedUser = await userService.deleteUser(id);
+        const deletedUser = await userService.deleteUser(id, getStudentAffairsScope(req.user));
         res.status(200).json(deletedUser);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(400).json({ error: error.message });
     }
 });
 
