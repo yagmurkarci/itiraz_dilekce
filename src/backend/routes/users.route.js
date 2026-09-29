@@ -24,9 +24,9 @@ router.get('/GetAllUsers', dynamicAuthorize, async (req, res) => {
 
 
 router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
-    const { name, password, email, number, roleId } = req.body;
+    const { name, password, email, number, roleId, departmentIds } = req.body;
     try {
-        const newUser = await userService.createUser(name, password, email, number, roleId, getStudentAffairsScope(req.user));
+        const newUser = await userService.createUser(name, password, email, number, roleId, getStudentAffairsScope(req.user), departmentIds);
         res.status(201).json(newUser);  
     } catch (error) {
         res.status(400).json({ error: error.message });  
@@ -35,9 +35,9 @@ router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
 
 router.put('/UpdateUserById/:id', dynamicAuthorize, async (req, res) => {
     const { id } = req.params;
-    const { name, email, number, password, roleId } = req.body;
+    const { name, email, number, password, roleId, departmentIds } = req.body;
     try {
-        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId }, getStudentAffairsScope(req.user));
+        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId, departmentIds }, getStudentAffairsScope(req.user));
         res.status(200).json(updatedUser);
     } catch (error) {
         res.status(400).json({ error: error.message });

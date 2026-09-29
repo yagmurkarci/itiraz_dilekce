@@ -15,6 +15,13 @@ exports.getUsers = async (allowedRoleNames = null) => {
       number: true,
       isActive: true,
       createdAt: true,
+      userDepartments: {
+        select: {
+          department: {
+            select: { id: true, departmentName: true }
+          }
+        }
+      },
       userRoles: {
         select: {
           role: {
@@ -29,11 +36,33 @@ exports.getUsers = async (allowedRoleNames = null) => {
   return users.map((user) => ({
     ...user,
     role: user.userRoles[0]?.role || null,
+    departments: user.userDepartments.map(({ department }) => department),
+    userDepartments: undefined,
     userRoles: undefined
   }));
 };
 
-exports.createUser = async (name, password, email, number, roleId, allowedRoleNames = null) => {
+const getAssignedDepartmentIds = async (departmentIds, roleName) => {
+  const ids = [...new Set((departmentIds || []).map(Number))];
+  if (ids.some((id) => !Number.isInteger(id) || id < 1)) {
+    throw new Error('Department IDs must be valid positive integers');
+  }
+
+  if (['Öğrenci', 'Mezun'].includes(roleName) && !ids.length) {
+    throw new Error('At least one department is required for students and graduates');
+  }
+
+  if (ids.length) {
+    const existingCount = await prisma.department.count({ where: { id: { in: ids } } });
+    if (existingCount !== ids.length) {
+      throw new Error('One or more departments were not found');
+    }
+  }
+
+  return ['Öğrenci', 'Mezun'].includes(roleName) ? ids : [];
+};
+
+exports.createUser = async (name, password, email, number, roleId, allowedRoleNames = null, departmentIds = []) => {
   if (!name || !password || !email || !roleId) {
     throw new Error('name, password, email and roleId are required');
   }
@@ -56,6 +85,8 @@ exports.createUser = async (name, password, email, number, roleId, allowedRoleNa
     throw new Error('You cannot assign this role');
   }
 
+  const assignedDepartmentIds = await getAssignedDepartmentIds(departmentIds, role.roleName);
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   return prisma.user.create({
@@ -66,6 +97,11 @@ exports.createUser = async (name, password, email, number, roleId, allowedRoleNa
       number: number || null,
       userRoles: {
         create: { roleId: Number(roleId) }
+      },
+      userDepartments: {
+        create: assignedDepartmentIds.map((departmentId) => ({
+          department: { connect: { id: departmentId } }
+        }))
       }
     },
     select: {
@@ -118,6 +154,8 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
     throw new Error('Role not found');
   }
 
+  const assignedDepartmentIds = await getAssignedDepartmentIds(userData.departmentIds, selectedRole.roleName);
+
   const isRoot = currentUser.userRoles.some(({ role }) => role.roleName === 'Root');
   if (isRoot && selectedRole.roleName !== 'Root') {
     throw new Error('Root role cannot be removed');
@@ -147,6 +185,13 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
       await transaction.userRole.deleteMany({ where: { userId } });
       await transaction.userRole.create({
         data: { userId, roleId: Number(userData.roleId) }
+      });
+    }
+
+    await transaction.userDepartment.deleteMany({ where: { userId } });
+    if (assignedDepartmentIds.length) {
+      await transaction.userDepartment.createMany({
+        data: assignedDepartmentIds.map((departmentId) => ({ userId, departmentId }))
       });
     }
 

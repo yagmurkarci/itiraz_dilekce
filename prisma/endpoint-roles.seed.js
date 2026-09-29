@@ -55,6 +55,7 @@ module.exports = async function(prisma) {
   ];
   const studentAffairsEndpoints = [
     ['/api/roles', 'GET', '/GetAllRoles'],
+    ['/api/departments', 'GET', '/GetAllDepartments'],
     ['/api/users', 'GET', '/GetAllUsers'],
     ['/api/users', 'POST', '/CreateUser'],
     ['/api/users', 'PUT', '/UpdateUserById/:id'],

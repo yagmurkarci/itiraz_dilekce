@@ -12,11 +12,15 @@ const userForm = document.getElementById('userForm');
 const userFormMessage = document.getElementById('userFormMessage');
 const usersTableBody = document.getElementById('usersTableBody');
 const userRole = document.getElementById('userRole');
+const createUserDepartmentsField = document.getElementById('createUserDepartmentsField');
+const createUserDepartments = document.getElementById('createUserDepartments');
 const userSearch = document.getElementById('userSearch');
 const updateUserSelect = document.getElementById('updateUserSelect');
 const updateUserForm = document.getElementById('userUpdateForm');
 const userUpdateMessage = document.getElementById('userUpdateMessage');
 const updateUserRole = document.getElementById('updateUserRole');
+const updateUserDepartmentsField = document.getElementById('updateUserDepartmentsField');
+const updateUserDepartments = document.getElementById('updateUserDepartments');
 const updateUserPassword = document.getElementById('updateUserPassword');
 const toggleUpdatePassword = document.getElementById('toggleUpdatePassword');
 const userPassword = document.getElementById('userPassword');
@@ -178,7 +182,36 @@ async function loadDepartments() {
   const departments = await apiFetch('/departments/GetAllDepartments');
   state.departments = departments;
   renderDepartmentCheckboxes();
+  renderUserDepartmentCheckboxes(createUserDepartments, 'createDepartmentIds');
+  renderUserDepartmentCheckboxes(updateUserDepartments, 'updateDepartmentIds');
   departmentCount.textContent = String(departments.length);
+}
+
+function renderUserDepartmentCheckboxes(container, inputName, selectedIds = []) {
+  const selected = new Set(selectedIds.map(Number));
+  container.innerHTML = state.departments
+    .map((department) => `
+      <label class="department-checkbox-item">
+        <input type="checkbox" name="${inputName}" value="${department.id}" ${selected.has(department.id) ? 'checked' : ''} />
+        <span>${department.departmentName}</span>
+      </label>
+    `)
+    .join('');
+}
+
+function isStudentOrGraduate(roleId) {
+  const role = state.roles.find((item) => item.id === Number(roleId));
+  return ['Öğrenci', 'Mezun'].includes(role?.roleName);
+}
+
+function selectedDepartmentIds(container) {
+  return [...container.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((checkbox) => Number(checkbox.value));
+}
+
+function updateDepartmentFieldVisibility() {
+  createUserDepartmentsField.classList.toggle('hidden', !isStudentOrGraduate(userRole.value));
+  updateUserDepartmentsField.classList.toggle('hidden', !updateUserSelect.value || !isStudentOrGraduate(updateUserRole.value));
 }
 
 async function loadRoles() {
@@ -193,6 +226,7 @@ async function loadRoles() {
     .map((role) => `<option value="${role.id}">${role.roleName}</option>`)
     .join('');
   setUpdateRoleOptions();
+  updateDepartmentFieldVisibility();
   if (hasSessionRole('Root')) {
     renderRoles();
     renderPermissionRoleOptions();
@@ -320,6 +354,12 @@ function populateUserUpdateForm() {
   document.getElementById('updateUserNumber').value = selectedUser.number || '';
   updateUserPassword.value = '';
   setUpdateRoleOptions(selectedUser.role?.id);
+  renderUserDepartmentCheckboxes(
+    updateUserDepartments,
+    'updateDepartmentIds',
+    (selectedUser.departments || []).map((department) => department.id)
+  );
+  updateDepartmentFieldVisibility();
 }
 
 async function loadUsers() {
@@ -334,6 +374,7 @@ async function loadUsers() {
           <td>${user.name}</td>
           <td>${user.email}</td>
           <td>${user.number || '-'}</td>
+          <td>${(user.departments || []).map((department) => department.departmentName).join(', ') || '-'}</td>
           <td>${user.role?.roleName || '-'}</td>
           <td>${user.role?.roleName === 'Root' ? '<span class="protected-user">Koruma</span>' : `<button class="delete-btn" data-user-id="${user.id}">Sil</button>`}</td>
         </tr>
@@ -397,6 +438,8 @@ async function initializeDashboard() {
     const tasks = [];
     if (hasSessionRole('Root', 'Admin', 'Öğrenci', 'Mezun', 'Akademisyen')) {
       tasks.push(loadDepartments(), loadCourses());
+    } else if (hasSessionRole('Öğrenci İşleri')) {
+      tasks.push(loadDepartments());
     }
     if (hasSessionRole('Root', 'Admin', 'Öğrenci İşleri')) {
       tasks.push(loadRoles(), loadUsers());
@@ -483,6 +526,13 @@ userForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   userFormMessage.textContent = '';
+  const departmentIds = isStudentOrGraduate(userRole.value) ? selectedDepartmentIds(createUserDepartments) : [];
+
+  if (isStudentOrGraduate(userRole.value) && !departmentIds.length) {
+    userFormMessage.textContent = 'Öğrenci veya mezun için en az bir bölüm seçmelisiniz.';
+    userFormMessage.className = 'form-message error';
+    return;
+  }
 
   try {
     await apiFetch('/users/CreateUser', {
@@ -493,10 +543,12 @@ userForm.addEventListener('submit', async (event) => {
         password: document.getElementById('userPassword').value,
         number: document.getElementById('userNumber').value.trim(),
         roleId: Number(userRole.value),
+        departmentIds,
       }),
     });
 
     userForm.reset();
+  updateDepartmentFieldVisibility();
     userFormMessage.textContent = 'Kullanıcı başarıyla eklendi.';
     userFormMessage.className = 'form-message success';
     await loadUsers();
@@ -603,6 +655,8 @@ savePermissionsButton.addEventListener('click', async () => {
 
 userSearch.addEventListener('input', renderUserSearchResults);
 updateUserSelect.addEventListener('change', populateUserUpdateForm);
+userRole.addEventListener('change', updateDepartmentFieldVisibility);
+updateUserRole.addEventListener('change', updateDepartmentFieldVisibility);
 
 updateUserForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -617,6 +671,13 @@ updateUserForm.addEventListener('submit', async (event) => {
   }
 
   const password = updateUserPassword.value;
+  const departmentIds = isStudentOrGraduate(updateUserRole.value) ? selectedDepartmentIds(updateUserDepartments) : [];
+
+  if (isStudentOrGraduate(updateUserRole.value) && !departmentIds.length) {
+    userUpdateMessage.textContent = 'Öğrenci veya mezun için en az bir bölüm seçmelisiniz.';
+    userUpdateMessage.className = 'form-message error';
+    return;
+  }
 
   try {
     await apiFetch(`/users/UpdateUserById/${userId}`, {
@@ -626,6 +687,7 @@ updateUserForm.addEventListener('submit', async (event) => {
         email: document.getElementById('updateUserEmail').value.trim(),
         number: document.getElementById('updateUserNumber').value.trim(),
         roleId: Number(document.getElementById('updateUserRole').value),
+        departmentIds,
         ...(password ? { password } : {}),
       }),
     });
