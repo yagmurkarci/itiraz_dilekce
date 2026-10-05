@@ -51,6 +51,7 @@ exports.loginUser = async (email, password) => {
     const token = jwt.sign(
       {
         userId: user.id,
+        name: user.name,
         email: user.email,
         roles: roles, // Buraya roller eklendi
       },
@@ -62,4 +63,11 @@ exports.loginUser = async (email, password) => {
   } catch (error) {
     throw new Error(error.message);
   }
+};
+
+exports.getCurrentUser = async (userId) => {
+  return prisma.user.findUnique({
+    where: { id: Number(userId) },
+    select: { id: true, name: true, email: true },
+  });
 };

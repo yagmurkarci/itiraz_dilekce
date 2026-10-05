@@ -30,9 +30,32 @@ module.exports = async function seedEndpoints(prisma) {
     { endpointPath: '/GetAllCourses', method: 'GET', description: 'Tüm kursları getirir', routerPath: '/api/courses' },
     { endpointPath: '/GetCourseById/:id', method: 'GET', description: 'ID ile kurs getirir', routerPath: '/api/courses' },
     { endpointPath: '/GetDepartmentCourseMap', method: 'GET', description: 'Bölümlere göre ders dağılımını getirir', routerPath: '/api/courses' },
+    { endpointPath: '/GetStudentDepartmentCourses', method: 'GET', description: 'Öğrencinin bölümüne ait dersleri getirir', routerPath: '/api/courses' },
     { endpointPath: '/CreateCourse', method: 'POST', description: 'Yeni kurs oluşturur', routerPath: '/api/courses' },
     { endpointPath: '/UpdateCourseById/:id', method: 'PUT', description: 'Kursu günceller', routerPath: '/api/courses' },
     { endpointPath: '/DeleteCourseById/:id', method: 'DELETE', description: 'Kursu siler', routerPath: '/api/courses' },
+
+    // Course instructors
+    { endpointPath: '/GetAssignments', method: 'GET', description: 'Ders-hoca eşleşmelerini getirir', routerPath: '/api/course-instructors' },
+    { endpointPath: '/AssignInstructor', method: 'POST', description: 'Derse hoca atar', routerPath: '/api/course-instructors' },
+    { endpointPath: '/DeleteAssignment/:id', method: 'DELETE', description: 'Ders-hoca eşleşmesini siler', routerPath: '/api/course-instructors' },
+
+    // Requests
+    { endpointPath: '/GetAllRequests', method: 'GET', description: 'Tüm dilekçeleri getirir', routerPath: '/api/requests' },
+    { endpointPath: '/GetRequestsByUser/:id', method: 'GET', description: 'Bir kullanıcının dilekçelerini getirir', routerPath: '/api/requests' },
+    { endpointPath: '/CreateRequest', method: 'POST', description: 'Yeni dilekçe oluşturur', routerPath: '/api/requests' },
+    { endpointPath: '/UpdateRequestStatus/:id', method: 'PUT', description: 'Dilekçe durumunu günceller', routerPath: '/api/requests' },
+    { endpointPath: '/UpdateRequest/:id', method: 'PUT', description: 'Öğrencinin dilekçesini günceller', routerPath: '/api/requests' },
+    { endpointPath: '/DeleteRequest/:id', method: 'DELETE', description: 'Öğrencinin dilekçesini siler', routerPath: '/api/requests' },
+    { endpointPath: '/ForwardRequest/:id', method: 'PUT', description: 'Dilekçeyi ilgili hocaya yönlendirir', routerPath: '/api/requests' },
+    { endpointPath: '/RejectRequest/:id', method: 'PUT', description: 'Dilekçeyi gerekçeli reddeder', routerPath: '/api/requests' },
+    { endpointPath: '/GetAssignedRequests', method: 'GET', description: 'Hocaya atanmış dilekçeleri getirir', routerPath: '/api/requests' },
+    { endpointPath: '/ReplyToRequest/:id', method: 'PUT', description: 'Hocanın dilekçeye yanıtını kaydeder', routerPath: '/api/requests' },
+    { endpointPath: '/GetAcademics', method: 'GET', description: 'Akademisyenleri listeler', routerPath: '/api/users' },
+
+    // Request Attachments
+    { endpointPath: '/UploadRequestAttachment', method: 'POST', description: 'Dilekçe dosyasını yükler', routerPath: '/api/request-attachments' },
+    { endpointPath: '/GetRequestAttachments/:id', method: 'GET', description: 'Dilekçeye ait ek dosyaları getirir', routerPath: '/api/request-attachments' },
 
     // Endpoints
     { endpointPath: '/GetAllEndpoints', method: 'GET', description: 'Tüm metotları getirir', routerPath: '/api/endpoints' },

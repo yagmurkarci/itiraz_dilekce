@@ -31,11 +31,23 @@ const courseCount = document.getElementById('courseCount');
 const departmentCount = document.getElementById('departmentCount');
 const logoutBtn = document.getElementById('logoutBtn');
 const pageTitle = document.getElementById('pageTitle');
+const sidebarUserBadge = document.getElementById('sidebarUserBadge');
+const sidebarUserName = document.getElementById('sidebarUserName');
+const sidebarUserRole = document.getElementById('sidebarUserRole');
+const homeWelcomeTitle = document.getElementById('homeWelcomeTitle');
+const homeActionButton = document.getElementById('homeActionButton');
+const homeStats = document.getElementById('homeStats');
 const homeView = document.getElementById('homeView');
 const coursesView = document.getElementById('coursesView');
 const usersView = document.getElementById('usersView');
 const rolesView = document.getElementById('rolesView');
 const courseManagementPanel = document.getElementById('courseManagementPanel');
+const courseInstructorPanel = document.getElementById('courseInstructorPanel');
+const courseInstructorForm = document.getElementById('courseInstructorForm');
+const instructorCourseSelect = document.getElementById('instructorCourseSelect');
+const instructorUserSelect = document.getElementById('instructorUserSelect');
+const courseInstructorsTableBody = document.getElementById('courseInstructorsTableBody');
+const courseInstructorMessage = document.getElementById('courseInstructorMessage');
 const roleForm = document.getElementById('roleForm');
 const roleFormMessage = document.getElementById('roleFormMessage');
 const rolesTableBody = document.getElementById('rolesTableBody');
@@ -45,6 +57,24 @@ const permissionMessage = document.getElementById('permissionMessage');
 const saveRoleButton = document.getElementById('saveRoleButton');
 const cancelRoleEdit = document.getElementById('cancelRoleEdit');
 const savePermissionsButton = document.getElementById('savePermissionsButton');
+const requestsView = document.getElementById('requestsView');
+const studentRequestPanel = document.getElementById('studentRequestPanel');
+const studentHomeRequestsPanel = document.getElementById('studentHomeRequestsPanel');
+const studentAnnouncementsList = document.getElementById('studentAnnouncementsList');
+const staffRequestsPanel = document.getElementById('staffRequestsPanel');
+const staffRequestsTableBody = document.getElementById('staffRequestsTableBody');
+const staffRequestsTitle = document.getElementById('staffRequestsTitle');
+const staffRequestsMessage = document.getElementById('staffRequestsMessage');
+const studentRequestForm = document.getElementById('studentRequestForm');
+const studentRequestCourse = document.getElementById('studentRequestCourse');
+const studentRequestSubmit = document.getElementById('studentRequestSubmit');
+const studentRequestCancelEdit = document.getElementById('studentRequestCancelEdit');
+const studentRequestsManagementList = document.getElementById('studentRequestsManagementList');
+const requestTitle = document.getElementById('requestTitle');
+const requestDescription = document.getElementById('requestDescription');
+const requestAttachment = document.getElementById('requestAttachment');
+const studentRequestMessage = document.getElementById('studentRequestMessage');
+const studentRequestsList = document.getElementById('studentRequestsList');
 const navButtons = document.querySelectorAll('.nav-item');
 
 const state = {
@@ -56,7 +86,13 @@ const state = {
   endpointRoles: [],
   editingRoleId: null,
   roleNames: [],
+  sessionUserName: '',
+  academics: [],
+  courseInstructorAssignments: [],
+  editingRequestId: null,
   activePage: 'home',
+  requests: [],
+  calendarMonth: new Date(2026, 10, 1),
 };
 
 function getToken() {
@@ -78,9 +114,39 @@ function getSessionRoleNames() {
     const binary = atob(payload);
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
     const decoded = JSON.parse(new TextDecoder().decode(bytes));
-    return (decoded.roles || []).map(({ roleName }) => roleName);
+    const roles = decoded.roles || [];
+
+    if (!Array.isArray(roles)) return [];
+
+    return roles
+      .map((role) => typeof role === 'string' ? role : role?.roleName)
+      .filter(Boolean);
   } catch {
     return [];
+  }
+}
+
+function getSessionUserId() {
+  try {
+    const payload = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const decoded = JSON.parse(new TextDecoder().decode(bytes));
+    return Number(decoded.userId || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function getSessionUserName() {
+  try {
+    const payload = getToken().split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const decoded = JSON.parse(new TextDecoder().decode(bytes));
+    return decoded.name || state.sessionUserName || decoded.email || 'Kullanıcı';
+  } catch {
+    return 'Kullanıcı';
   }
 }
 
@@ -88,20 +154,91 @@ function hasSessionRole(...roleNames) {
   return roleNames.some((roleName) => state.roleNames.includes(roleName));
 }
 
+function updateSidebarUser() {
+  const userName = getSessionUserName();
+  const primaryRole = state.roleNames[0] || 'Kullanıcı';
+
+  if (sidebarUserName) {
+    sidebarUserName.textContent = userName;
+  }
+
+  if (sidebarUserRole) {
+    sidebarUserRole.textContent = primaryRole;
+  }
+
+  if (sidebarUserBadge) {
+    sidebarUserBadge.textContent = userName?.trim()?.charAt(0)?.toUpperCase() || 'K';
+  }
+}
+
 function applyRoleVisibility() {
-  const canViewCourses = hasSessionRole('Root', 'Admin', 'Öğrenci', 'Mezun', 'Akademisyen');
+  const canViewCourses = hasSessionRole('Root', 'Admin', 'Akademisyen');
   const canManageUsers = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
   const canManageRoles = hasSessionRole('Root');
+  const canCreateRequest = hasSessionRole('Öğrenci', 'Mezun');
+  const isStudent = hasSessionRole('Öğrenci', 'Mezun');
+  const isStudentAffairs = hasSessionRole('Öğrenci İşleri');
+  const canManageRequests = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+  const canReviewAssignedRequests = hasSessionRole('Akademisyen');
+
+  document.title = isStudent
+    ? 'Öğrenci Dilekçe Takibi'
+    : isStudentAffairs
+      ? 'Öğrenci İşleri Paneli'
+      : hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin')
+        ? 'Akademik Panel'
+        : 'Yönetim Paneli';
+
+  studentRequestPanel?.classList.toggle('hidden', !canCreateRequest);
+  studentHomeRequestsPanel?.classList.toggle('hidden', !isStudent);
+  staffRequestsPanel?.classList.toggle('hidden', !(canManageRequests || canReviewAssignedRequests));
+  homeStats?.classList.toggle('hidden', isStudent);
+
+  if (homeWelcomeTitle) {
+    homeWelcomeTitle.textContent = isStudent
+      ? 'Öğrenci işlemlerinizi buradan takip edin.'
+      : isStudentAffairs
+        ? 'Öğrenci kayıtları ve dilekçe süreçleri.'
+        : hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin')
+          ? 'Ders ve akademik işlemler.'
+          : 'Yönetim ekranına eriştiniz.';
+  }
+
+  if (homeActionButton) {
+    const actionPage = isStudent || isStudentAffairs ? 'requests' : 'courses';
+    homeActionButton.dataset.pageTarget = actionPage;
+    homeActionButton.textContent = isStudent
+      ? 'Dilekçelerim'
+      : isStudentAffairs
+        ? 'Dilekçe kuyruğu'
+        : 'Ders işlemleri';
+  }
 
   navButtons.forEach((button) => {
+    if (button.dataset.page === 'requests') {
+      button.textContent = isStudent
+        ? 'Dilekçelerim'
+        : isStudentAffairs
+          ? 'Dilekçe İnceleme'
+          : canReviewAssignedRequests && !hasSessionRole('Root', 'Admin')
+            ? 'Hoca İnceleme'
+          : 'Dilekçe Yönetimi';
+    } else if (button.dataset.page === 'users' && isStudentAffairs) {
+      button.textContent = 'Öğrenci Yönetimi';
+    }
+
     const visible = button.dataset.page === 'home'
+      || (button.dataset.page === 'requests' && (canCreateRequest || canManageRequests || canReviewAssignedRequests))
       || (button.dataset.page === 'courses' && canViewCourses)
       || (button.dataset.page === 'users' && canManageUsers)
       || (button.dataset.page === 'roles' && canManageRoles);
     button.classList.toggle('hidden', !visible);
   });
 
+  updateSidebarUser();
+
   courseManagementPanel.classList.toggle('hidden', !hasSessionRole('Root', 'Admin'));
+  courseInstructorPanel?.classList.toggle('hidden', !hasSessionRole('Root', 'Admin'));
   document.querySelector('[data-page-target="courses"]')?.classList.toggle('hidden', !canViewCourses);
   courseCount.closest('.stat-card').classList.toggle('hidden', !canViewCourses);
   departmentCount.closest('.stat-card').classList.toggle('hidden', !canViewCourses);
@@ -127,13 +264,17 @@ function setPage(page) {
 
   const pageMap = {
     home: 'Ana Sayfa',
-    courses: 'Dersler',
-    users: 'Kullanıcılar',
+    requests: hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri')
+      ? 'Hoca İnceleme Kuyruğu'
+      : hasSessionRole('Öğrenci İşleri', 'Root', 'Admin') ? 'Dilekçe Takibi' : 'Dilekçelerim',
+    courses: 'Ders Yönetimi',
+    users: hasSessionRole('Öğrenci İşleri') ? 'Öğrenci Yönetimi' : 'Kullanıcı Yönetimi',
     roles: 'Roller',
   };
 
   pageTitle.textContent = pageMap[page] || 'Ana Sayfa';
   homeView.classList.toggle('hidden', page !== 'home');
+  requestsView.classList.toggle('hidden', page !== 'requests');
   coursesView.classList.toggle('hidden', page !== 'courses');
   usersView.classList.toggle('hidden', page !== 'users');
   rolesView.classList.toggle('hidden', page !== 'roles');
@@ -428,15 +569,265 @@ async function loadCourses() {
         )
         .join('')
     : '<div class="department-course-group"><h4>Henüz ders atan bölüm yok</h4></div>';
+
+  if (hasSessionRole('Root', 'Admin')) {
+    await loadCourseInstructorAssignments();
+  }
+}
+
+async function loadCourseInstructorAssignments() {
+  const [academics, assignments] = await Promise.all([
+    apiFetch('/users/GetAcademics'),
+    apiFetch('/course-instructors/GetAssignments'),
+  ]);
+  state.academics = academics;
+  state.courseInstructorAssignments = assignments;
+
+  instructorCourseSelect.innerHTML = state.courses
+    .map(({ id, courseCode, courseName }) => `<option value="${id}">${escapeHtml(courseCode)} - ${escapeHtml(courseName)}</option>`)
+    .join('');
+  instructorUserSelect.innerHTML = academics
+    .map(({ id, name }) => `<option value="${id}">${escapeHtml(name)}</option>`)
+    .join('');
+  courseInstructorsTableBody.innerHTML = assignments.length
+    ? assignments.map(({ id, course, instructor }) => `<tr><td>${escapeHtml(course.courseCode)} - ${escapeHtml(course.courseName)}</td><td>${escapeHtml(instructor.name)}</td><td><button class="delete-btn" type="button" data-delete-instructor-assignment="${id}">Kaldır</button></td></tr>`).join('')
+    : '<tr><td colspan="3">Henüz ders-hoca eşleştirmesi yok.</td></tr>';
+}
+
+async function loadStudentCourses() {
+  if (!hasSessionRole('Öğrenci', 'Mezun')) {
+    studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>';
+    return;
+  }
+
+  try {
+    const courses = await apiFetch('/courses/GetStudentDepartmentCourses');
+    studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>' + courses
+      .map((course) => `<option value="${course.id}">${course.courseName}</option>`)
+      .join('');
+  } catch (error) {
+    studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>';
+  }
+}
+
+function getRequestStatusLabel(status) {
+  const map = {
+    PENDING: 'Beklemede',
+    IN_REVIEW: 'İnceleniyor',
+    APPROVED: 'Kabul Edildi',
+    REJECTED: 'Reddedildi',
+    ANSWERED: 'Hoca yanıtladı',
+  };
+
+  return map[status] || status || 'Beklemede';
+}
+
+function renderStudentAnnouncements() {
+  if (!studentAnnouncementsList) return;
+
+  if (!state.requests.length) {
+    studentAnnouncementsList.innerHTML = '<div class="empty-state">Henüz duyuru bulunmuyor.</div>';
+    return;
+  }
+
+  const announcements = [...state.requests]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 4);
+
+  studentAnnouncementsList.innerHTML = announcements.map((request) => {
+    const status = request.status || 'PENDING';
+    const statusLabel = getRequestStatusLabel(status);
+    const statusClass = status === 'ANSWERED' ? 'success' : status === 'REJECTED' ? 'danger' : status === 'IN_REVIEW' ? 'info' : 'pending';
+    const shortMessage = status === 'ANSWERED'
+      ? 'Dilekçen kabul edildi.'
+      : status === 'REJECTED'
+        ? 'Dilekçen reddedildi.'
+        : status === 'IN_REVIEW'
+          ? 'Dilekçen inceleniyor.'
+          : 'Dilekçen beklemede.';
+
+    return `
+      <div class="announcement-item ${statusClass}">
+        <div class="announcement-head">
+          <strong>${escapeHtml(request.title || 'Dilekçe')}</strong>
+          <span class="announcement-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+        </div>
+        <div class="announcement-body">${escapeHtml(shortMessage)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderStudentRequests() {
+  if (!studentRequestsList) return;
+
+  const monthStart = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth(), 1);
+  const monthLabel = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' }).format(monthStart);
+  const firstDayIndex = (monthStart.getDay() + 6) % 7;
+  const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const daysInPrevMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0).getDate();
+  const eventMap = new Map([
+    ['2026-10-09', { type: 'exam', text: 'Vize sınavı', project: 'İngilizce · Frontend Geliştirme', detail: 'Vize sınavı haftası başladı.' }],
+    ['2026-10-15', { type: 'exam', text: 'Vize sınavı', project: 'İngilizce · Frontend Geliştirme', detail: 'Sınav haftası devam ediyor.' }],
+    ['2026-10-17', { type: 'holiday', text: 'Tatil', project: 'Üniversite', detail: 'Cumhuriyet Bayramı tatili.' }],
+    ['2026-10-23', { type: 'exam', text: 'Vize sınavı', project: 'İngilizce · Frontend Geliştirme', detail: 'Sınav haftası devam ediyor.' }],
+    ['2026-10-26', { type: 'holiday', text: 'Tatil', project: 'Üniversite', detail: 'Öğrenci tatili.' }],
+    ['2026-11-06', { type: 'assignment', text: 'Ödev teslimi', project: 'Backend Programlama', detail: 'API geliştirme ödevi teslim tarihi.' }],
+    ['2026-11-11', { type: 'quiz', text: 'Kısa sınav', project: 'Web Geliştirme', detail: '10 dakikalık kısa sınav.' }],
+    ['2026-11-18', { type: 'assignment', text: 'Ödev teslimi', project: 'Veri Yapıları', detail: 'Proje ödevi teslimi.' }],
+  ]);
+
+  const cells = [];
+  for (let i = 0; i < firstDayIndex; i += 1) {
+    const prevDay = daysInPrevMonth - firstDayIndex + i + 1;
+    cells.push(`<span class="day muted" title="Önceki ay">${prevDay}</span>`);
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const event = eventMap.get(key);
+    const className = event ? `day ${event.type}` : 'day';
+    const title = event ? `${event.text}: ${event.project} — ${event.detail}` : `${day}. ${monthLabel}`;
+    cells.push(`<span class="${className}" title="${escapeHtml(title)}">${day}</span>`);
+  }
+
+  const totalCells = cells.length;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for (let day = 1; day <= trailing; day += 1) {
+    cells.push(`<span class="day muted" title="Sonraki ay">${day}</span>`);
+  }
+
+  studentRequestsList.innerHTML = `
+    <div class="mini-calendar-header">
+      <button class="calendar-nav" type="button" data-calendar-action="prev" aria-label="Önceki ay">&#8249;</button>
+      <span>${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</span>
+      <button class="calendar-nav" type="button" data-calendar-action="next" aria-label="Sonraki ay">&#8250;</button>
+    </div>
+    <div class="mini-calendar-grid">
+      <span class="day-name">Pt</span><span class="day-name">Sa</span><span class="day-name">Ça</span><span class="day-name">Pe</span><span class="day-name">Cu</span><span class="day-name">Ct</span><span class="day-name">Pz</span>
+      ${cells.join('')}
+    </div>
+    <div class="calendar-legend">
+      <span><i class="legend exam"></i> Sınav haftası</span>
+      <span><i class="legend assignment"></i> Ödev</span>
+      <span><i class="legend quiz"></i> Kısa sınav</span>
+      <span><i class="legend holiday"></i> Tatil</span>
+    </div>
+  `;
+
+  if (studentRequestsManagementList) {
+    studentRequestsManagementList.innerHTML = state.requests.length
+      ? state.requests.map((request) => {
+          const canEdit = request.status === 'PENDING' && !request.assignedTo;
+          const attachments = (request.attachments || []).map((attachment) =>
+            `<a href="${escapeHtml(attachment.filePath)}" target="_blank" rel="noopener">${escapeHtml(attachment.fileName)}</a>`
+          ).join(' ');
+          return `
+            <div class="request-status-item">
+              <div class="request-status-header">
+                <strong>${escapeHtml(request.title || 'Dilekçe')}</strong>
+                <span class="request-status-badge">${escapeHtml(getRequestStatusLabel(request.status))}</span>
+              </div>
+              <div class="request-status-meta">${escapeHtml(request.course?.courseName || '-')} • ${escapeHtml(request.department?.departmentName || '-')}</div>
+              <div class="request-status-date">${new Date(request.createdAt).toLocaleDateString('tr-TR')}</div>
+              ${request.answer ? `<p class="request-response">Yanıt: ${escapeHtml(request.answer)}</p>` : ''}
+              ${request.rejectionReason ? `<p class="request-response rejection">Ret gerekçesi: ${escapeHtml(request.rejectionReason)}</p>` : ''}
+              ${attachments ? `<div class="request-attachments">${attachments}</div>` : ''}
+              ${canEdit ? `<div class="request-actions"><button class="secondary-button" type="button" data-edit-request="${request.id}">Düzenle</button><button class="delete-btn" type="button" data-delete-request="${request.id}">Sil</button></div>` : ''}
+            </div>
+          `;
+        }).join('')
+      : '<div class="empty-state">Henüz dilekçe bulunmuyor.</div>';
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+}
+
+function renderManagedRequests(requests) {
+  if (!staffRequestsTableBody) return;
+
+  if (!requests.length) {
+    staffRequestsTableBody.innerHTML = '<tr><td colspan="5">İncelenecek dilekçe bulunmuyor.</td></tr>';
+    return;
+  }
+
+  const isInstructor = hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+
+  staffRequestsTableBody.innerHTML = requests.map((request) => {
+    const attachments = (request.attachments || []).map((attachment) =>
+      `<a href="${escapeHtml(attachment.filePath)}" target="_blank" rel="noopener">${escapeHtml(attachment.fileName)}</a>`
+    ).join('<br>') || 'Ek dosya yok';
+    const isClosedRequest = request.status === 'REJECTED' || request.status === 'ANSWERED';
+    const actions = isInstructor
+      ? isClosedRequest
+        ? `<div class="request-review-cell"><div class="request-attachments">Öğrenci ekleri:<br>${attachments}</div><div class="request-status-date">${escapeHtml(getRequestStatusLabel(request.status))}${request.rejectionReason ? `<small>${escapeHtml(request.rejectionReason)}</small>` : ''}</div></div>`
+        : `<div class="request-review-cell"><div class="request-attachments">Öğrenci ekleri:<br>${attachments}</div><label class="file-field"><span>İncelenmiş sınav kağıdı (PDF/görsel)</span><input type="file" data-exam-paper="${request.id}" accept="application/pdf,image/*" required /></label><textarea data-instructor-answer="${request.id}" rows="3" placeholder="İnceleme yanıtı" required>${escapeHtml(request.answer || '')}</textarea><button class="primary-button small" type="button" data-reply-request="${request.id}">Dosyayı yükle ve yanıtla</button></div>`
+      : request.status === 'REJECTED' || request.status === 'ANSWERED'
+        ? `<div>${escapeHtml(getRequestStatusLabel(request.status))}${request.rejectionReason ? `<small>${escapeHtml(request.rejectionReason)}</small>` : ''}</div>`
+        : `<div class="request-review-cell"><select data-forward-instructor="${request.id}" aria-label="Derse atanmış hoca"><option value="">Atanmış hocayı seçin</option>${(request.course?.instructors || []).map(({ instructor }) => `<option value="${instructor.id}">${escapeHtml(instructor.name)}</option>`).join('')}</select><button class="secondary-button" type="button" data-forward-request="${request.id}" ${(request.course?.instructors || []).length ? '' : 'disabled'}>Hocaya yönlendir</button><textarea data-rejection-reason="${request.id}" rows="2" placeholder="Ret gerekçesi"></textarea><button class="delete-btn" type="button" data-reject-request="${request.id}">Gerekçeli reddet</button></div>`;
+
+    const studentAttachments = !isInstructor && request.attachments?.length
+      ? `<div class="request-attachments">Ekler:<br>${attachments}</div>`
+      : '';
+    return `<tr data-request-row="${request.id}"><td>${escapeHtml(request.creator?.name || '-')}</td><td><strong>${escapeHtml(request.title)}</strong><small>${escapeHtml(request.description)}</small>${studentAttachments}</td><td>${escapeHtml(request.course?.courseName || '-')}<small>${escapeHtml(request.department?.departmentName || '-')}</small></td><td>${new Date(request.createdAt).toLocaleDateString('tr-TR')}</td><td>${actions}</td></tr>`;
+  }).join('');
+}
+
+async function loadManagedRequests() {
+  try {
+    const isInstructor = hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+    const requests = await apiFetch(isInstructor ? '/requests/GetAssignedRequests' : '/requests/GetAllRequests');
+    if (staffRequestsTitle) {
+      staffRequestsTitle.textContent = isInstructor ? 'Bana Atanan Dilekçeler' : 'Dilekçe İnceleme Kuyruğu';
+    }
+    renderManagedRequests(requests);
+  } catch (error) {
+    staffRequestsMessage.textContent = error.message;
+    staffRequestsMessage.className = 'form-message error';
+  }
+}
+
+async function loadStudentRequests() {
+  if (!hasSessionRole('Öğrenci', 'Mezun')) {
+    state.requests = [];
+    renderStudentRequests();
+    return;
+  }
+
+  try {
+    const requests = await apiFetch(`/requests/GetRequestsByUser/${getSessionUserId()}`);
+    state.requests = requests;
+    renderStudentAnnouncements();
+    renderStudentRequests();
+  } catch (error) {
+    state.requests = [];
+    renderStudentAnnouncements();
+    renderStudentRequests();
+  }
 }
 
 async function initializeDashboard() {
   try {
     state.roleNames = getSessionRoleNames();
+    try {
+      const profile = await apiFetch('/auth/Me');
+      state.sessionUserName = profile.name || profile.email || '';
+    } catch {
+      state.sessionUserName = '';
+    }
     applyRoleVisibility();
+    updateSidebarUser();
 
     const tasks = [];
-    if (hasSessionRole('Root', 'Admin', 'Öğrenci', 'Mezun', 'Akademisyen')) {
+    if (hasSessionRole('Root', 'Admin', 'Akademisyen')) {
       tasks.push(loadDepartments(), loadCourses());
     } else if (hasSessionRole('Öğrenci İşleri')) {
       tasks.push(loadDepartments());
@@ -446,6 +837,12 @@ async function initializeDashboard() {
     }
     if (hasSessionRole('Root')) {
       tasks.push(loadRolePermissions());
+    }
+    if (hasSessionRole('Öğrenci', 'Mezun')) {
+      tasks.push(loadStudentCourses(), loadStudentRequests());
+    }
+    if (hasSessionRole('Root', 'Admin', 'Öğrenci İşleri', 'Akademisyen')) {
+      tasks.push(loadManagedRequests());
     }
 
     await Promise.all(tasks);
@@ -653,6 +1050,204 @@ savePermissionsButton.addEventListener('click', async () => {
   }
 });
 
+studentRequestForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const selectedCourseId = Number(studentRequestCourse.value);
+  const studentCourses = await apiFetch('/courses/GetStudentDepartmentCourses');
+  const selectedCourse = studentCourses.find((course) => course.id === selectedCourseId);
+
+  if (!selectedCourseId || !selectedCourse) {
+    studentRequestMessage.textContent = 'Lütfen ders seçin.';
+    studentRequestMessage.className = 'form-message error';
+    return;
+  }
+
+  if (!requestTitle.value.trim() || !requestDescription.value.trim()) {
+    studentRequestMessage.textContent = 'Konu ve detay alanları zorunludur.';
+    studentRequestMessage.className = 'form-message error';
+    return;
+  }
+
+  try {
+    const isEditing = Boolean(state.editingRequestId);
+    const request = await apiFetch(isEditing ? `/requests/UpdateRequest/${state.editingRequestId}` : '/requests/CreateRequest', {
+      method: isEditing ? 'PUT' : 'POST',
+      body: JSON.stringify({
+        title: requestTitle.value.trim(),
+        description: requestDescription.value.trim(),
+        requestType: 'EXAM_APPEAL',
+        courseId: selectedCourse.id,
+        departmentId: selectedCourse.departmentId,
+        attachments: [],
+      }),
+    });
+
+    const file = requestAttachment.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('requestId', request.id);
+
+      await fetch(`${API_BASE}/request-attachments/UploadRequestAttachment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+    }
+
+    studentRequestForm.reset();
+    state.editingRequestId = null;
+    studentRequestSubmit.textContent = 'Dilekçe Gönder';
+    studentRequestCancelEdit.classList.add('hidden');
+    studentRequestMessage.textContent = isEditing ? 'Dilekçe güncellendi.' : 'Dilekçe başarıyla gönderildi.';
+    studentRequestMessage.className = 'form-message success';
+    await Promise.all([loadStudentCourses(), loadStudentRequests()]);
+    setPage('home');
+  } catch (error) {
+    studentRequestMessage.textContent = error.message;
+    studentRequestMessage.className = 'form-message error';
+  }
+});
+
+staffRequestsTableBody.addEventListener('click', async (event) => {
+  const actionButton = event.target.closest('[data-forward-request], [data-reject-request], [data-reply-request]');
+  if (!actionButton) return;
+
+  const requestId = actionButton.dataset.forwardRequest || actionButton.dataset.rejectRequest || actionButton.dataset.replyRequest;
+  const row = actionButton.closest('[data-request-row]');
+  staffRequestsMessage.textContent = '';
+
+  try {
+    if (actionButton.hasAttribute('data-forward-request')) {
+      const instructorId = row.querySelector(`[data-forward-instructor="${requestId}"]`).value;
+      if (!instructorId) throw new Error('Derse atanmış bir hoca seçin.');
+      await apiFetch(`/requests/ForwardRequest/${requestId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ instructorId: Number(instructorId) }),
+      });
+      staffRequestsMessage.textContent = 'Dilekçe ilgili hocaya yönlendirildi.';
+    } else if (actionButton.hasAttribute('data-reject-request')) {
+      const rejectionReason = row.querySelector(`[data-rejection-reason="${requestId}"]`).value.trim();
+      if (!rejectionReason) throw new Error('Ret gerekçesi yazın.');
+      await apiFetch(`/requests/RejectRequest/${requestId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ rejectionReason }),
+      });
+      staffRequestsMessage.textContent = 'Dilekçe gerekçesiyle reddedildi.';
+    } else {
+      const file = row.querySelector(`[data-exam-paper="${requestId}"]`).files[0];
+      const answer = row.querySelector(`[data-instructor-answer="${requestId}"]`).value.trim();
+      if (!file) throw new Error('Yanıtlamadan önce incelenmiş sınav kağıdını yükleyin.');
+      if (!answer) throw new Error('İnceleme yanıtını yazın.');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('requestId', requestId);
+      const uploadResponse = await fetch(`${API_BASE}/request-attachments/UploadRequestAttachment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResponse.ok) throw new Error(uploadResult.error || 'Dosya yüklenemedi.');
+      await apiFetch(`/requests/ReplyToRequest/${requestId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ answer }),
+      });
+      staffRequestsMessage.textContent = 'Sınav kağıdı yüklendi ve yanıt öğrenciye iletildi.';
+    }
+    staffRequestsMessage.className = 'form-message success';
+    await Promise.all([loadManagedRequests(), loadStudentRequests()]);
+  } catch (error) {
+    staffRequestsMessage.textContent = error.message;
+    staffRequestsMessage.className = 'form-message error';
+  }
+});
+
+studentRequestsList.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-calendar-action]');
+  if (!button) return;
+
+  const action = button.dataset.calendarAction;
+  const nextMonth = new Date(state.calendarMonth);
+  nextMonth.setMonth(state.calendarMonth.getMonth() + (action === 'next' ? 1 : -1));
+  state.calendarMonth = nextMonth;
+  renderStudentRequests();
+});
+
+studentRequestsManagementList.addEventListener('click', async (event) => {
+  const editButton = event.target.closest('[data-edit-request]');
+  const deleteButton = event.target.closest('[data-delete-request]');
+
+  if (editButton) {
+    const request = state.requests.find(({ id }) => id === Number(editButton.dataset.editRequest));
+    if (!request) return;
+    state.editingRequestId = request.id;
+    studentRequestCourse.value = String(request.courseId);
+    requestTitle.value = request.title;
+    requestDescription.value = request.description;
+    studentRequestSubmit.textContent = 'Değişiklikleri Kaydet';
+    studentRequestCancelEdit.classList.remove('hidden');
+    studentRequestMessage.textContent = '';
+    setPage('requests');
+    requestTitle.focus();
+    return;
+  }
+
+  if (!deleteButton || !window.confirm('Bu dilekçeyi silmek istiyor musunuz?')) return;
+
+  try {
+    await apiFetch(`/requests/DeleteRequest/${deleteButton.dataset.deleteRequest}`, { method: 'DELETE' });
+    await loadStudentRequests();
+  } catch (error) {
+    studentRequestMessage.textContent = error.message;
+    studentRequestMessage.className = 'form-message error';
+  }
+});
+
+studentRequestCancelEdit.addEventListener('click', () => {
+  state.editingRequestId = null;
+  studentRequestForm.reset();
+  studentRequestSubmit.textContent = 'Dilekçe Gönder';
+  studentRequestCancelEdit.classList.add('hidden');
+  studentRequestMessage.textContent = '';
+});
+
+courseInstructorForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  courseInstructorMessage.textContent = '';
+
+  try {
+    await apiFetch('/course-instructors/AssignInstructor', {
+      method: 'POST',
+      body: JSON.stringify({
+        courseId: Number(instructorCourseSelect.value),
+        instructorId: Number(instructorUserSelect.value),
+      }),
+    });
+    courseInstructorMessage.textContent = 'Hoca derse atandı.';
+    courseInstructorMessage.className = 'form-message success';
+    await loadCourseInstructorAssignments();
+    await loadManagedRequests();
+  } catch (error) {
+    courseInstructorMessage.textContent = error.message;
+    courseInstructorMessage.className = 'form-message error';
+  }
+});
+
+courseInstructorsTableBody.addEventListener('click', async (event) => {
+  const removeButton = event.target.closest('[data-delete-instructor-assignment]');
+  if (!removeButton) return;
+
+  try {
+    await apiFetch(`/course-instructors/DeleteAssignment/${removeButton.dataset.deleteInstructorAssignment}`, { method: 'DELETE' });
+    await loadCourseInstructorAssignments();
+    await loadManagedRequests();
+  } catch (error) {
+    courseInstructorMessage.textContent = error.message;
+    courseInstructorMessage.className = 'form-message error';
+  }
+});
+
 userSearch.addEventListener('input', renderUserSearchResults);
 updateUserSelect.addEventListener('change', populateUserUpdateForm);
 userRole.addEventListener('change', updateDepartmentFieldVisibility);
@@ -762,8 +1357,8 @@ navButtons.forEach((button) => {
   });
 });
 
-document.querySelector('[data-page-target="courses"]')?.addEventListener('click', () => {
-  setPage('courses');
+homeActionButton?.addEventListener('click', () => {
+  setPage(homeActionButton.dataset.pageTarget);
 });
 
 logoutBtn.addEventListener('click', () => {

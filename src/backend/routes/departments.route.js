@@ -7,9 +7,11 @@ const dynamicAuthorize = require('../middleware/dynamic-authorize');
 
 router.use(verifyToken);
 
+const isStudent = (req) => req.user.roles?.some(({ roleName }) => ['Öğrenci', 'Mezun'].includes(roleName));
+
 router.get('/GetAllDepartments', dynamicAuthorize, async (req, res) => {
   try {
-    const departments = await departmentService.getAllDepartments();
+    const departments = await departmentService.getAllDepartments(isStudent(req) ? req.user.userId : null);
     res.status(200).json(departments);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -18,7 +20,7 @@ router.get('/GetAllDepartments', dynamicAuthorize, async (req, res) => {
 
 router.get('/GetDepartmentById/:id', dynamicAuthorize, async (req, res) => {
   try {
-    const department = await departmentService.getDepartmentById(req.params.id);
+    const department = await departmentService.getDepartmentById(req.params.id, isStudent(req) ? req.user.userId : null);
     res.status(200).json(department);
   } catch (error) {
     res.status(404).json({ error: error.message });

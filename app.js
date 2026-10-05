@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const morgan = require('morgan');
 const path = require('path');
 
+// Çevre değişkenlerini route ve servisler yüklenmeden önce hazırla.
+dotenv.config();
 
 // Route'lar
 const authRoutes = require('./src/backend/routes/auth.route');
@@ -14,10 +16,10 @@ const endpointRoutes = require('./src/backend/routes/endpoints.route');
 const endpointRoleRoutes = require('./src/backend/routes/endpoint-roles.route');
 const departmentRoutes = require('./src/backend/routes/departments.route');
 const courseRoutes = require('./src/backend/routes/courses.route');
+const requestRoutes = require('./src/backend/routes/requests.route');
+const requestAttachmentRoutes = require('./src/backend/routes/request-attachments.route');
+const courseInstructorRoutes = require('./src/backend/routes/course-instructors.route');
 
-
-// Çevre değişkenlerini yükle
-dotenv.config();
 
 const app = express();
 
@@ -41,6 +43,10 @@ app.use('/api/endpoints', endpointRoutes);
 app.use('/api/endpoint-roles', endpointRoleRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/requests', requestRoutes);
+app.use('/api/request-attachments', requestAttachmentRoutes);
+app.use('/api/course-instructors', courseInstructorRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

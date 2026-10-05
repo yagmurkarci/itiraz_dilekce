@@ -7,9 +7,11 @@ const dynamicAuthorize = require('../middleware/dynamic-authorize');
 
 router.use(verifyToken);
 
+const isStudent = (req) => req.user.roles?.some(({ roleName }) => ['Öğrenci', 'Mezun'].includes(roleName));
+
 router.get('/GetAllCourses', dynamicAuthorize, async (req, res) => {
   try {
-    const courses = await courseService.getAllCourses();
+    const courses = await courseService.getAllCourses(isStudent(req) ? req.user.userId : null);
     res.status(200).json(courses);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -18,7 +20,7 @@ router.get('/GetAllCourses', dynamicAuthorize, async (req, res) => {
 
 router.get('/GetCourseById/:id', dynamicAuthorize, async (req, res) => {
   try {
-    const course = await courseService.getCourseById(req.params.id);
+    const course = await courseService.getCourseById(req.params.id, isStudent(req) ? req.user.userId : null);
     res.status(200).json(course);
   } catch (error) {
     res.status(404).json({ error: error.message });
@@ -27,8 +29,20 @@ router.get('/GetCourseById/:id', dynamicAuthorize, async (req, res) => {
 
 router.get('/GetDepartmentCourseMap', dynamicAuthorize, async (req, res) => {
   try {
-    const map = await courseService.getDepartmentCourseMap();
+    const departmentIds = isStudent(req)
+      ? await courseService.getStudentDepartmentIds(req.user.userId)
+      : null;
+    const map = await courseService.getDepartmentCourseMap(departmentIds ? [...new Set(departmentIds)] : null);
     res.status(200).json(map);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/GetStudentDepartmentCourses', dynamicAuthorize, async (req, res) => {
+  try {
+    const courses = await courseService.getStudentDepartmentCourses(req.user.userId);
+    res.status(200).json(courses);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

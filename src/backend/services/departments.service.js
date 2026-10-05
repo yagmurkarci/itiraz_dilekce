@@ -1,15 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-exports.getAllDepartments = async () => {
+exports.getAllDepartments = async (studentUserId = null) => {
   return prisma.department.findMany({
+    where: studentUserId ? { userDepartments: { some: { userId: Number(studentUserId) } } } : undefined,
     orderBy: { id: 'asc' }
   });
 };
 
-exports.getDepartmentById = async (id) => {
-  const department = await prisma.department.findUnique({
-    where: { id: parseInt(id, 10) }
+exports.getDepartmentById = async (id, studentUserId = null) => {
+  const department = await prisma.department.findFirst({
+    where: {
+      id: parseInt(id, 10),
+      ...(studentUserId ? { userDepartments: { some: { userId: Number(studentUserId) } } } : {})
+    }
   });
 
   if (!department) {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Root Yönetim Paneli</title>
+    <title>Dilekçe Takip Sistemi</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -13,10 +13,10 @@
     <div id="loginView" class="auth-shell">
       <div class="auth-card">
         <div class="brand-block">
-          <div class="brand-mark">R</div>
+          <div class="brand-mark">D</div>
           <div>
-            <p class="eyebrow">Yönetim Sistemi</p>
-            <h1>Root Girişi</h1>
+            <p class="eyebrow">Üniversite Dilekçe Sistemi</p>
+            <h1>Hesap Girişi</h1>
           </div>
         </div>
 
@@ -40,17 +40,18 @@
     <div id="dashboardView" class="dashboard hidden">
       <aside class="sidebar">
         <div class="sidebar-header">
-          <div class="brand-mark small">R</div>
+          <div id="sidebarUserBadge" class="brand-mark small">R</div>
           <div>
-            <strong>Root</strong>
-            <small>Yönetim</small>
+            <strong id="sidebarUserName">Root</strong>
+            <small id="sidebarUserRole">Yönetim</small>
           </div>
         </div>
 
         <nav class="nav">
           <button class="nav-item active" data-page="home">Ana Sayfa</button>
-          <button class="nav-item" data-page="courses">Dersler</button>
-          <button class="nav-item" data-page="users">Kullanıcılar</button>
+          <button class="nav-item" data-page="requests">Dilekçeler</button>
+          <button class="nav-item" data-page="courses">Ders Yönetimi</button>
+          <button class="nav-item" data-page="users">Kullanıcı Yönetimi</button>
           <button class="nav-item" data-page="roles">Roller</button>
         </nav>
 
@@ -71,12 +72,12 @@
             <div class="hero-card">
               <div>
                 <p class="eyebrow accent">Hoş geldiniz</p>
-                <h3>Yönetim ekranına eriştiniz.</h3>
+                <h3 id="homeWelcomeTitle">Yönetim ekranına eriştiniz.</h3>
               </div>
-              <button class="primary-button small" data-page-target="courses">Ders işlemleri</button>
+              <button id="homeActionButton" class="primary-button small" data-page-target="courses">Ders işlemleri</button>
             </div>
 
-            <div class="stats-grid">
+            <div id="homeStats" class="stats-grid">
               <div class="stat-card">
                 <span>Toplam Ders</span>
                 <strong id="courseCount">0</strong>
@@ -86,6 +87,105 @@
                 <strong id="departmentCount">0</strong>
               </div>
             </div>
+
+            <div class="home-panels">
+              <div id="studentAnnouncementsPanel" class="panel form-panel">
+                <div class="panel-header">
+                  <h3>Duyurular</h3>
+                </div>
+                <div id="studentAnnouncementsList" class="announcement-list"></div>
+              </div>
+
+              <div id="studentHomeRequestsPanel" class="panel form-panel">
+                <div class="panel-header">
+                  <h3>Akademik Takvim</h3>
+                </div>
+                <div id="studentRequestsList" class="calendar-panel">
+                  <div class="mini-calendar-header">
+                    <span>Kasım 2026</span>
+                    <span class="calendar-tag">Ekim dönemi</span>
+                  </div>
+                  <div class="mini-calendar-grid">
+                    <span class="day-name">Pt</span><span class="day-name">Sa</span><span class="day-name">Ça</span><span class="day-name">Pe</span><span class="day-name">Cu</span><span class="day-name">Ct</span><span class="day-name">Pz</span>
+                    <span class="day muted">30</span><span class="day muted">31</span><span class="day">1</span><span class="day">2</span><span class="day">3</span><span class="day">4</span><span class="day">5</span>
+                    <span class="day">6</span><span class="day">7</span><span class="day">8</span><span class="day exam">9</span><span class="day">10</span><span class="day">11</span><span class="day">12</span>
+                    <span class="day">13</span><span class="day">14</span><span class="day exam">15</span><span class="day">16</span><span class="day holiday">17</span><span class="day">18</span><span class="day">19</span>
+                    <span class="day">20</span><span class="day">21</span><span class="day">22</span><span class="day exam">23</span><span class="day">24</span><span class="day">25</span><span class="day holiday">26</span>
+                    <span class="day">27</span><span class="day">28</span><span class="day">29</span><span class="day">30</span><span class="day muted">1</span><span class="day muted">2</span><span class="day muted">3</span>
+                  </div>
+                  <div class="calendar-legend">
+                    <span><i class="legend exam"></i> Sınav haftası</span>
+                    <span><i class="legend holiday"></i> Tatil</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="requestsView" class="page-panel hidden">
+            <section id="studentRequestPanel" class="panel form-panel">
+              <div class="panel-header">
+                <h3>Sınav Itiraz Dilekçesi</h3>
+              </div>
+
+              <form id="studentRequestForm" class="course-form">
+                <div class="field-row">
+                  <label>
+                    <span>Ders</span>
+                    <select id="studentRequestCourse" required>
+                      <option value="">Ders seçin</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>Konu</span>
+                    <input id="requestTitle" placeholder="Sınav kağıdı itirazı" required />
+                  </label>
+                </div>
+
+                <div class="field-row single">
+                  <label>
+                    <span>Detay</span>
+                    <textarea id="requestDescription" rows="5" placeholder="İtiraz nedeninizi açıklayın..." required></textarea>
+                  </label>
+                </div>
+
+                <div class="field-row single">
+                  <label>
+                    <span>Ek Dosya</span>
+                    <input id="requestAttachment" type="file" accept="image/*,.pdf" />
+                  </label>
+                </div>
+
+                <div class="form-actions">
+                  <button id="studentRequestSubmit" type="submit" class="primary-button">Dilekçe Gönder</button>
+                  <button id="studentRequestCancelEdit" class="secondary-button hidden" type="button">Düzenlemeyi İptal Et</button>
+                </div>
+                <p id="studentRequestMessage" class="form-message"></p>
+              </form>
+              <div id="studentRequestsManagementList" class="request-status-list"></div>
+            </section>
+
+            <section id="staffRequestsPanel" class="panel table-panel hidden">
+              <div class="panel-header">
+                <h3 id="staffRequestsTitle">Dilekçe İnceleme Kuyruğu</h3>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Öğrenci</th>
+                      <th>Konu</th>
+                      <th>Ders / Bölüm</th>
+                      <th>Tarih</th>
+                      <th>İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="staffRequestsTableBody"></tbody>
+                </table>
+              </div>
+              <p id="staffRequestsMessage" class="form-message"></p>
+            </section>
           </section>
 
           <section id="coursesView" class="page-panel hidden">
@@ -138,6 +238,32 @@
                     </tr>
                   </thead>
                   <tbody id="coursesTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="courseInstructorPanel" class="panel form-panel hidden">
+              <div class="panel-header">
+                <h3>Ders-Hoca Eşleştirmesi</h3>
+              </div>
+              <form id="courseInstructorForm" class="course-form">
+                <div class="field-row">
+                  <label>
+                    <span>Ders</span>
+                    <select id="instructorCourseSelect" required></select>
+                  </label>
+                  <label>
+                    <span>Öğretim elemanı</span>
+                    <select id="instructorUserSelect" required></select>
+                  </label>
+                </div>
+                <div class="form-actions"><button class="primary-button" type="submit">Hocayı Ata</button></div>
+                <p id="courseInstructorMessage" class="form-message"></p>
+              </form>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Ders</th><th>Öğretim elemanı</th><th>İşlem</th></tr></thead>
+                  <tbody id="courseInstructorsTableBody"></tbody>
                 </table>
               </div>
             </section>

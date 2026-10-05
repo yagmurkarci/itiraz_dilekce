@@ -2,7 +2,11 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-exports.getAllCourses = async () => {
+exports.getAllCourses = async (studentUserId = null) => {
+  if (studentUserId) {
+    return exports.getStudentDepartmentCourses(studentUserId);
+  }
+
   return prisma.course.findMany({
     include: {
       department: true,
@@ -18,7 +22,7 @@ exports.getAllCourses = async () => {
   });
 };
 
-exports.getCourseById = async (id) => {
+exports.getCourseById = async (id, studentUserId = null) => {
   const course = await prisma.course.findUnique({
     where: {
       id: parseInt(id, 10)
@@ -30,6 +34,15 @@ exports.getCourseById = async (id) => {
 
   if (!course) {
     throw new Error('Course not found');
+  }
+
+  if (studentUserId) {
+    const studentCourses = await exports.getStudentDepartmentCourses(studentUserId);
+    const studentCourse = studentCourses.find(({ id: courseId }) => courseId === course.id);
+    if (!studentCourse) {
+      throw new Error('Course not found');
+    }
+    return studentCourse;
   }
 
   return course;
@@ -113,8 +126,55 @@ exports.deleteCourse = async (id) => {
   });
 };
 
-exports.getDepartmentCourseMap = async () => {
+exports.getStudentDepartmentIds = async (userId) => {
+  const userDepartments = await prisma.userDepartment.findMany({
+    where: { userId: Number(userId) },
+    select: { departmentId: true },
+  });
+
+  return userDepartments.map((item) => item.departmentId);
+};
+
+exports.getStudentDepartmentCourses = async (userId) => {
+  const departmentIds = await exports.getStudentDepartmentIds(userId);
+
+  if (!departmentIds.length) {
+    return [];
+  }
+
+  return prisma.course.findMany({
+    where: {
+      OR: [
+        {
+          courseDepartments: {
+            some: {
+              departmentId: { in: departmentIds },
+            },
+          },
+        },
+        {
+          courseDepartments: { none: {} },
+          departmentId: { in: departmentIds },
+        },
+      ],
+    },
+    include: {
+      department: true,
+      courseDepartments: {
+        where: { departmentId: { in: departmentIds } },
+        include: { department: true },
+      },
+    },
+    orderBy: { id: 'asc' },
+  }).then((courses) => courses.map((course) => ({
+    ...course,
+    department: course.courseDepartments[0]?.department || course.department,
+  })));
+};
+
+exports.getDepartmentCourseMap = async (departmentIds = null) => {
   const records = await prisma.courseDepartment.findMany({
+    where: departmentIds ? { departmentId: { in: departmentIds } } : undefined,
     include: {
       department: true,
       course: true
