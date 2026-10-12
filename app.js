@@ -19,6 +19,7 @@ const courseRoutes = require('./src/backend/routes/courses.route');
 const requestRoutes = require('./src/backend/routes/requests.route');
 const requestAttachmentRoutes = require('./src/backend/routes/request-attachments.route');
 const courseInstructorRoutes = require('./src/backend/routes/course-instructors.route');
+const bysRoutes = require('./src/backend/routes/bys.route');
 
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/request-attachments', requestAttachmentRoutes);
 app.use('/api/course-instructors', courseInstructorRoutes);
+app.use('/api/bys', bysRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {

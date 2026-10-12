@@ -93,6 +93,7 @@ module.exports = async function(prisma) {
     'Öğrenci': readAcademicEndpoints,
     'Mezun': readAcademicEndpoints,
     'Akademisyen': [...readAcademicEndpoints, ...instructorEndpoints],
+    'Öğretim Görevlisi': [...readAcademicEndpoints, ...instructorEndpoints],
     'Admin': adminEndpoints,
     'Öğrenci İşleri': studentAffairsEndpoints,
   };

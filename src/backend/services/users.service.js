@@ -13,6 +13,7 @@ exports.getUsers = async (allowedRoleNames = null) => {
       name: true,
       email: true,
       number: true,
+      bysStudentId: true,
       isActive: true,
       createdAt: true,
       userDepartments: {
@@ -35,7 +36,8 @@ exports.getUsers = async (allowedRoleNames = null) => {
 
   return users.map((user) => ({
     ...user,
-    role: user.userRoles[0]?.role || null,
+    role: user.userRoles.find(({ role }) => role.roleName === 'Admin')?.role || user.userRoles[0]?.role || null,
+    roles: user.userRoles.map(({ role }) => role),
     departments: user.userDepartments.map(({ department }) => department),
     userDepartments: undefined,
     userRoles: undefined
@@ -62,13 +64,18 @@ const getAssignedDepartmentIds = async (departmentIds, roleName) => {
   return ['Öğrenci', 'Mezun'].includes(roleName) ? ids : [];
 };
 
-exports.createUser = async (name, password, email, number, roleId, allowedRoleNames = null, departmentIds = []) => {
+exports.createUser = async (name, password, email, number, bysStudentId, roleId, allowedRoleNames = null, departmentIds = []) => {
   if (!name || !password || !email || !roleId) {
     throw new Error('name, password, email and roleId are required');
   }
 
   if (number && !/^05\d{9}$/.test(number)) {
     throw new Error('Phone number must contain 11 digits and start with 05');
+  }
+
+  const normalizedBysStudentId = bysStudentId ? Number(bysStudentId) : null;
+  if (normalizedBysStudentId !== null && (!Number.isInteger(normalizedBysStudentId) || normalizedBysStudentId <= 0)) {
+    throw new Error('BYS student ID must be a positive integer');
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -95,6 +102,7 @@ exports.createUser = async (name, password, email, number, roleId, allowedRoleNa
       password: hashedPassword,
       email,
       number: number || null,
+      bysStudentId: normalizedBysStudentId,
       userRoles: {
         create: { roleId: Number(roleId) }
       },
@@ -154,14 +162,28 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
     throw new Error('Role not found');
   }
 
+  const additionalRole = userData.academicRoleId
+    ? await prisma.role.findUnique({ where: { id: Number(userData.academicRoleId) } })
+    : null;
+  if (userData.academicRoleId && !additionalRole) {
+    throw new Error('Additional role not found');
+  }
+  if (additionalRole && (selectedRole.roleName !== 'Admin' || !['Akademisyen', 'Öğretim Görevlisi'].includes(additionalRole.roleName))) {
+    throw new Error('Only Admin users can receive an additional academic role');
+  }
+
+  const requestedRoles = [selectedRole, ...(additionalRole ? [additionalRole] : [])];
+  const requestedRoleIds = [...new Set(requestedRoles.map(({ id: roleId }) => roleId))];
+  const requestedRoleNames = requestedRoles.map(({ roleName }) => roleName);
+
   const assignedDepartmentIds = await getAssignedDepartmentIds(userData.departmentIds, selectedRole.roleName);
 
   const isRoot = currentUser.userRoles.some(({ role }) => role.roleName === 'Root');
-  if (isRoot && selectedRole.roleName !== 'Root') {
+  if (isRoot && (selectedRole.roleName !== 'Root' || additionalRole)) {
     throw new Error('Root role cannot be removed');
   }
 
-  if (!isRoot && (selectedRole.roleName === 'Root' || (allowedRoleNames && !allowedRoleNames.includes(selectedRole.roleName)))) {
+  if (!isRoot && (requestedRoleNames.includes('Root') || (allowedRoleNames && requestedRoleNames.some((roleName) => !allowedRoleNames.includes(roleName))))) {
     throw new Error('Root role cannot be assigned here');
   }
 
@@ -169,6 +191,7 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
     name: userData.name,
     email: userData.email,
     number: userData.number || null,
+    bysStudentId: userData.bysStudentId ? Number(userData.bysStudentId) : null,
   };
 
   if (userData.password) {
@@ -183,8 +206,8 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
 
     if (!isRoot) {
       await transaction.userRole.deleteMany({ where: { userId } });
-      await transaction.userRole.create({
-        data: { userId, roleId: Number(userData.roleId) }
+      await transaction.userRole.createMany({
+        data: requestedRoleIds.map((roleId) => ({ userId, roleId }))
       });
     }
 

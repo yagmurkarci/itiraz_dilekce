@@ -26,7 +26,7 @@ router.get('/GetAcademics', dynamicAuthorize, async (req, res) => {
     try {
         const canListAcademics = req.user.roles?.some(({ roleName }) => ['Root', 'Admin', 'Öğrenci İşleri'].includes(roleName));
         if (!canListAcademics) return res.status(403).json({ error: 'You cannot list academics' });
-        const academics = await userService.getUsers(['Akademisyen']);
+        const academics = await userService.getUsers(['Akademisyen', 'Öğretim Görevlisi']);
         res.status(200).json(academics.map(({ id, name, email }) => ({ id, name, email })));
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -35,9 +35,9 @@ router.get('/GetAcademics', dynamicAuthorize, async (req, res) => {
 
 
 router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
-    const { name, password, email, number, roleId, departmentIds } = req.body;
+    const { name, password, email, number, bysStudentId, roleId, departmentIds } = req.body;
     try {
-        const newUser = await userService.createUser(name, password, email, number, roleId, getStudentAffairsScope(req.user), departmentIds);
+        const newUser = await userService.createUser(name, password, email, number, bysStudentId, roleId, getStudentAffairsScope(req.user), departmentIds);
         res.status(201).json(newUser);  
     } catch (error) {
         res.status(400).json({ error: error.message });  
@@ -46,9 +46,9 @@ router.post('/CreateUser', dynamicAuthorize, async (req, res) => {
 
 router.put('/UpdateUserById/:id', dynamicAuthorize, async (req, res) => {
     const { id } = req.params;
-    const { name, email, number, password, roleId, departmentIds } = req.body;
+    const { name, email, number, password, bysStudentId, roleId, academicRoleId, departmentIds } = req.body;
     try {
-        const updatedUser = await userService.updateUser(id, { name, email, number, password, roleId, departmentIds }, getStudentAffairsScope(req.user));
+        const updatedUser = await userService.updateUser(id, { name, email, number, bysStudentId, password, roleId, academicRoleId, departmentIds }, getStudentAffairsScope(req.user));
         res.status(200).json(updatedUser);
     } catch (error) {
         res.status(400).json({ error: error.message });

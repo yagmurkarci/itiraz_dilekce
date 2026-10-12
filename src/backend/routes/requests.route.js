@@ -21,7 +21,7 @@ router.get('/GetAllRequests', dynamicAuthorize, async (req, res) => {
 
 router.get('/GetAssignedRequests', dynamicAuthorize, async (req, res) => {
   try {
-    const isInstructor = req.user.roles?.some(({ roleName }) => roleName === 'Akademisyen');
+    const isInstructor = req.user.roles?.some(({ roleName }) => ['Akademisyen', 'Öğretim Görevlisi'].includes(roleName));
     if (!isInstructor) return res.status(403).json({ error: 'Only academics can view assigned requests' });
     res.status(200).json(await requestService.getAssignedRequests(req.user.userId));
   } catch (error) {
@@ -113,7 +113,7 @@ router.put('/RejectRequest/:id', dynamicAuthorize, async (req, res) => {
 
 router.put('/ReplyToRequest/:id', dynamicAuthorize, async (req, res) => {
   try {
-    const isInstructor = req.user.roles?.some(({ roleName }) => roleName === 'Akademisyen');
+    const isInstructor = req.user.roles?.some(({ roleName }) => ['Akademisyen', 'Öğretim Görevlisi'].includes(roleName));
     if (!isInstructor) return res.status(403).json({ error: 'Only academics can reply to assigned requests' });
     const request = await requestService.replyToRequest({
       requestId: req.params.id,

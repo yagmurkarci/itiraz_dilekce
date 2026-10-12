@@ -2,6 +2,8 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+const academicRoleNames = ['Akademisyen', 'Öğretim Görevlisi'];
+
 const assignmentInclude = {
 	course: { select: { id: true, courseCode: true, courseName: true } },
 	instructor: { select: { id: true, name: true, email: true } },
@@ -27,7 +29,7 @@ exports.assignInstructor = async (courseId, instructorId) => {
 	]);
 
 	if (!course) throw new Error('Course not found');
-	if (!instructor?.userRoles.some(({ role }) => role.roleName === 'Akademisyen')) {
+	if (!instructor?.userRoles.some(({ role }) => academicRoleNames.includes(role.roleName))) {
 		throw new Error('Selected user is not an academic');
 	}
 

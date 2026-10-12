@@ -68,6 +68,6 @@ exports.loginUser = async (email, password) => {
 exports.getCurrentUser = async (userId) => {
   return prisma.user.findUnique({
     where: { id: Number(userId) },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, bysStudentId: true },
   });
 };

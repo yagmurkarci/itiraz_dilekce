@@ -120,16 +120,32 @@ exports.getAllRequests = async () => {
   });
 };
 
-exports.getAssignedRequests = async (instructorId) => prisma.request.findMany({
-  where: { assignedTo: Number(instructorId) },
-  include: {
-    course: true,
-    department: true,
-    creator: { select: { id: true, name: true, email: true } },
-    attachments: true,
-  },
-  orderBy: { updatedAt: 'desc' },
-});
+exports.getAssignedRequests = async (instructorId) => {
+  const parsedInstructorId = Number(instructorId);
+  const courseAssignments = await prisma.courseInstructor.findMany({
+    where: { instructorId: parsedInstructorId },
+    select: { courseId: true },
+  });
+
+  const courseIds = courseAssignments.map(({ courseId }) => courseId);
+
+  return prisma.request.findMany({
+    where: {
+      OR: [
+        { assignedTo: parsedInstructorId },
+        ...(courseIds.length ? [{ courseId: { in: courseIds } }] : []),
+      ],
+    },
+    include: {
+      course: true,
+      department: true,
+      creator: { select: { id: true, name: true, email: true } },
+      attachments: true,
+      assignee: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+};
 
 exports.forwardRequest = async ({ requestId, instructorId }) => {
   const request = await prisma.request.findUnique({ where: { id: Number(requestId) } });
@@ -177,7 +193,7 @@ exports.replyToRequest = async ({ requestId, instructorId, answer }) => {
 };
 
 exports.updateRequestStatus = async ({ requestId, status, answer, assignedTo, newGrade, rejectionReason }) => {
-  const request = await prisma.request.findUnique({ where: { id: Number(requestId) } });
+  const request = await prisma.request.findUnique({ where: { id: Numbçolurer(requestId) } });
   if (!request) throw new Error('Request not found');
 
   const validStatuses = ['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'ANSWERED'];

@@ -19,11 +19,15 @@ const updateUserSelect = document.getElementById('updateUserSelect');
 const updateUserForm = document.getElementById('userUpdateForm');
 const userUpdateMessage = document.getElementById('userUpdateMessage');
 const updateUserRole = document.getElementById('updateUserRole');
+const updateUserAcademicRoleField = document.getElementById('updateUserAcademicRoleField');
+const updateUserAcademicRole = document.getElementById('updateUserAcademicRole');
 const updateUserDepartmentsField = document.getElementById('updateUserDepartmentsField');
 const updateUserDepartments = document.getElementById('updateUserDepartments');
 const updateUserPassword = document.getElementById('updateUserPassword');
+const updateUserBysStudentId = document.getElementById('updateUserBysStudentId');
 const toggleUpdatePassword = document.getElementById('toggleUpdatePassword');
 const userPassword = document.getElementById('userPassword');
+const userBysStudentId = document.getElementById('userBysStudentId');
 const togglePassword = document.getElementById('togglePassword');
 const departmentCheckboxList = document.getElementById('departmentCheckboxList');
 const departmentCourseMap = document.getElementById('departmentCourseMap');
@@ -39,6 +43,12 @@ const homeActionButton = document.getElementById('homeActionButton');
 const homeStats = document.getElementById('homeStats');
 const homeView = document.getElementById('homeView');
 const coursesView = document.getElementById('coursesView');
+const studentCoursesView = document.getElementById('studentCoursesView');
+const studentScheduleView = document.getElementById('studentScheduleView');
+const studentCoursesList = document.getElementById('studentCoursesList');
+const studentCoursesMessage = document.getElementById('studentCoursesMessage');
+const studentScheduleList = document.getElementById('studentScheduleList');
+const studentScheduleMessage = document.getElementById('studentScheduleMessage');
 const usersView = document.getElementById('usersView');
 const rolesView = document.getElementById('rolesView');
 const courseManagementPanel = document.getElementById('courseManagementPanel');
@@ -87,6 +97,7 @@ const state = {
   editingRoleId: null,
   roleNames: [],
   sessionUserName: '',
+  bysStudentId: null,
   academics: [],
   courseInstructorAssignments: [],
   editingRequestId: null,
@@ -150,6 +161,12 @@ function getSessionUserName() {
   }
 }
 
+const ACADEMIC_ROLE_NAMES = ['Akademisyen', 'Öğretim Görevlisi'];
+
+function hasAcademicRole() {
+  return state.roleNames.some((roleName) => ACADEMIC_ROLE_NAMES.includes(roleName));
+}
+
 function hasSessionRole(...roleNames) {
   return roleNames.some((roleName) => state.roleNames.includes(roleName));
 }
@@ -172,20 +189,20 @@ function updateSidebarUser() {
 }
 
 function applyRoleVisibility() {
-  const canViewCourses = hasSessionRole('Root', 'Admin', 'Akademisyen');
+  const canViewCourses = hasSessionRole('Root', 'Admin') || hasAcademicRole();
   const canManageUsers = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
   const canManageRoles = hasSessionRole('Root');
   const canCreateRequest = hasSessionRole('Öğrenci', 'Mezun');
   const isStudent = hasSessionRole('Öğrenci', 'Mezun');
   const isStudentAffairs = hasSessionRole('Öğrenci İşleri');
   const canManageRequests = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
-  const canReviewAssignedRequests = hasSessionRole('Akademisyen');
+  const canReviewAssignedRequests = hasAcademicRole();
 
   document.title = isStudent
     ? 'Öğrenci Dilekçe Takibi'
     : isStudentAffairs
       ? 'Öğrenci İşleri Paneli'
-      : hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin')
+      : hasAcademicRole() && !hasSessionRole('Root', 'Admin')
         ? 'Akademik Panel'
         : 'Yönetim Paneli';
 
@@ -199,7 +216,7 @@ function applyRoleVisibility() {
       ? 'Öğrenci işlemlerinizi buradan takip edin.'
       : isStudentAffairs
         ? 'Öğrenci kayıtları ve dilekçe süreçleri.'
-        : hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin')
+        : hasAcademicRole() && !hasSessionRole('Root', 'Admin')
           ? 'Ders ve akademik işlemler.'
           : 'Yönetim ekranına eriştiniz.';
   }
@@ -230,6 +247,8 @@ function applyRoleVisibility() {
     const visible = button.dataset.page === 'home'
       || (button.dataset.page === 'requests' && (canCreateRequest || canManageRequests || canReviewAssignedRequests))
       || (button.dataset.page === 'courses' && canViewCourses)
+      || (button.dataset.page === 'student-courses' && isStudent)
+      || (button.dataset.page === 'student-schedule' && isStudent)
       || (button.dataset.page === 'users' && canManageUsers)
       || (button.dataset.page === 'roles' && canManageRoles);
     button.classList.toggle('hidden', !visible);
@@ -264,10 +283,12 @@ function setPage(page) {
 
   const pageMap = {
     home: 'Ana Sayfa',
-    requests: hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri')
+    requests: hasAcademicRole() && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri')
       ? 'Hoca İnceleme Kuyruğu'
       : hasSessionRole('Öğrenci İşleri', 'Root', 'Admin') ? 'Dilekçe Takibi' : 'Dilekçelerim',
     courses: 'Ders Yönetimi',
+    'student-courses': 'Derslerim',
+    'student-schedule': 'Ders Programım',
     users: hasSessionRole('Öğrenci İşleri') ? 'Öğrenci Yönetimi' : 'Kullanıcı Yönetimi',
     roles: 'Roller',
   };
@@ -276,6 +297,8 @@ function setPage(page) {
   homeView.classList.toggle('hidden', page !== 'home');
   requestsView.classList.toggle('hidden', page !== 'requests');
   coursesView.classList.toggle('hidden', page !== 'courses');
+  studentCoursesView.classList.toggle('hidden', page !== 'student-courses');
+  studentScheduleView.classList.toggle('hidden', page !== 'student-schedule');
   usersView.classList.toggle('hidden', page !== 'users');
   rolesView.classList.toggle('hidden', page !== 'roles');
 
@@ -355,15 +378,25 @@ function updateDepartmentFieldVisibility() {
   updateUserDepartmentsField.classList.toggle('hidden', !updateUserSelect.value || !isStudentOrGraduate(updateUserRole.value));
 }
 
+function updateAcademicRoleFieldVisibility() {
+  const role = state.roles.find((item) => item.id === Number(updateUserRole.value));
+  updateUserAcademicRoleField.classList.toggle('hidden', !updateUserSelect.value || role?.roleName !== 'Admin');
+}
+
+function getVisibleRoleOptions() {
+  const isStudentAffairs = hasSessionRole('Öğrenci İşleri');
+  return state.roles.filter((role) => {
+    if (role.roleName === 'Root') return false;
+    if (isStudentAffairs) return ['Öğrenci', 'Mezun'].includes(role.roleName);
+    return true;
+  });
+}
+
 async function loadRoles() {
   const roles = await apiFetch('/roles/GetAllRoles');
   state.roles = roles;
-  const selectableRoles = roles.filter((role) => role.roleName !== 'Root');
-  const userFormRoles = hasSessionRole('Öğrenci İşleri')
-    ? selectableRoles.filter((role) => ['Öğrenci', 'Mezun'].includes(role.roleName))
-    : selectableRoles;
-  userRole.innerHTML = roles
-    .filter((role) => userFormRoles.some(({ id }) => id === role.id))
+  const visibleRoles = getVisibleRoleOptions();
+  userRole.innerHTML = visibleRoles
     .map((role) => `<option value="${role.id}">${role.roleName}</option>`)
     .join('');
   setUpdateRoleOptions();
@@ -464,7 +497,8 @@ function setUpdateRoleOptions(selectedRoleId = '') {
   const selectedRole = state.roles.find((role) => role.id === Number(selectedRoleId));
   const roles = state.roles.filter((role) => {
     if (role.roleName === 'Root') return selectedRole?.roleName === 'Root';
-    if (hasSessionRole('Öğrenci İşleri')) return ['Öğrenci', 'Mezun'].includes(role.roleName);
+    const isStudentAffairs = hasSessionRole('Öğrenci İşleri');
+    if (isStudentAffairs) return ['Öğrenci', 'Mezun'].includes(role.roleName);
     return true;
   });
 
@@ -493,14 +527,17 @@ function populateUserUpdateForm() {
   document.getElementById('updateUserName').value = selectedUser.name;
   document.getElementById('updateUserEmail').value = selectedUser.email;
   document.getElementById('updateUserNumber').value = selectedUser.number || '';
+  updateUserBysStudentId.value = selectedUser.bysStudentId || '';
   updateUserPassword.value = '';
   setUpdateRoleOptions(selectedUser.role?.id);
+  updateUserAcademicRole.checked = (selectedUser.roles || []).some(({ roleName }) => ACADEMIC_ROLE_NAMES.includes(roleName));
   renderUserDepartmentCheckboxes(
     updateUserDepartments,
     'updateDepartmentIds',
     (selectedUser.departments || []).map((department) => department.id)
   );
   updateDepartmentFieldVisibility();
+  updateAcademicRoleFieldVisibility();
 }
 
 async function loadUsers() {
@@ -516,7 +553,7 @@ async function loadUsers() {
           <td>${user.email}</td>
           <td>${user.number || '-'}</td>
           <td>${(user.departments || []).map((department) => department.departmentName).join(', ') || '-'}</td>
-          <td>${user.role?.roleName || '-'}</td>
+          <td>${(user.roles || [user.role]).filter(Boolean).map(({ roleName }) => roleName).join(', ') || '-'}</td>
           <td>${user.role?.roleName === 'Root' ? '<span class="protected-user">Koruma</span>' : `<button class="delete-btn" data-user-id="${user.id}">Sil</button>`}</td>
         </tr>
       `
@@ -600,13 +637,203 @@ async function loadStudentCourses() {
     return;
   }
 
+  if (!state.bysStudentId) {
+    studentRequestCourse.innerHTML = '<option value="">BYS öğrenci ID tanımlı değil</option>';
+    return;
+  }
+
   try {
-    const courses = await apiFetch('/courses/GetStudentDepartmentCourses');
+    const [courses, bysData] = await Promise.all([
+      apiFetch('/courses/GetStudentDepartmentCourses'),
+      apiFetch(`/bys/student-courses?ogrenciId=${state.bysStudentId}`),
+    ]);
+    const bysCourseCodes = new Set(
+      (bysData.dersler || [])
+        .map((course) => String(course.dersKodu || '').trim())
+        .filter(Boolean)
+    );
+    const studentCourses = bysCourseCodes.size
+      ? courses.filter((course) => bysCourseCodes.has(String(course.courseCode || '').trim()))
+      : [];
+
     studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>' + courses
+      .filter((course) => studentCourses.includes(course))
       .map((course) => `<option value="${course.id}">${course.courseName}</option>`)
       .join('');
   } catch (error) {
     studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>';
+  }
+}
+
+async function loadBysStudentCourses() {
+  if (!hasSessionRole('Öğrenci', 'Mezun')) {
+    return;
+  }
+
+  studentCoursesMessage.textContent = 'Dersler BYS üzerinden yükleniyor...';
+  studentCoursesMessage.className = 'form-message';
+  studentCoursesList.innerHTML = '';
+
+  try {
+    if (!state.bysStudentId) {
+      studentCoursesMessage.textContent = 'Bu kullanıcı için BYS öğrenci ID tanımlanmamış.';
+      studentCoursesMessage.className = 'form-message error';
+      return;
+    }
+
+    const data = await apiFetch(`/bys/student-courses?ogrenciId=${state.bysStudentId}`);
+    const courses = data.dersler || [];
+
+    if (!courses.length) {
+      studentCoursesMessage.textContent = 'BYS üzerinde ders bulunamadı.';
+      return;
+    }
+
+    const groupedCourses = courses.reduce((groups, course) => {
+      const year = course.yazilmaAkademikYil || 'Akademik yıl belirtilmemiş';
+      const term = course.yazilmaAkademikDonemTuru || 'Dönem belirtilmemiş';
+
+      if (!groups[year]) {
+        groups[year] = {};
+      }
+
+      if (!groups[year][term]) {
+        groups[year][term] = [];
+      }
+
+      groups[year][term].push(course);
+      return groups;
+    }, {});
+
+    studentCoursesList.innerHTML = Object.entries(groupedCourses)
+      .map(([year, terms]) => `
+        <section class="department-course-group">
+          <h3>${escapeHtml(year)}</h3>
+          ${Object.entries(terms)
+            .map(([term, termCourses]) => `
+              <div class="course-term-group">
+                <h4>${escapeHtml(term)}</h4>
+                <ul>
+                  ${termCourses
+                    .map((course) => `
+                      <li>
+                        <strong>${escapeHtml(course.dersKodu || '-')}</strong>
+                        ${escapeHtml(course.dersAd || '-')}
+                        <span>Şube: ${escapeHtml(course.subeAd || '-')}</span>
+                      </li>
+                    `)
+                    .join('')}
+                </ul>
+              </div>
+            `)
+            .join('')}
+        </section>
+      `)
+      .join('');
+
+    studentCoursesMessage.textContent = `${courses.length} ders BYS'den yüklendi.`;
+    studentCoursesMessage.className = 'form-message success';
+  } catch (error) {
+    studentCoursesMessage.textContent = error.message;
+    studentCoursesMessage.className = 'form-message error';
+  }
+}
+
+async function loadBysStudentSchedule() {
+  if (!hasSessionRole('Öğrenci', 'Mezun')) {
+    return;
+  }
+
+  studentScheduleMessage.textContent = 'Ders programı BYS üzerinden yükleniyor...';
+  studentScheduleMessage.className = 'form-message';
+  studentScheduleList.innerHTML = '';
+
+  try {
+    if (!state.bysStudentId) {
+      studentScheduleMessage.textContent = 'Bu kullanıcı için BYS öğrenci ID tanımlanmamış.';
+      studentScheduleMessage.className = 'form-message error';
+      return;
+    }
+
+    const data = await apiFetch(`/bys/student-schedule?ogrenciId=${state.bysStudentId}`);
+    const schedule = data.program || [];
+
+    if (!schedule.length) {
+      studentScheduleMessage.textContent = 'BYS üzerinde ders programı bulunamadı.';
+      return;
+    }
+
+    const weeks = schedule.reduce((result, item) => {
+      const [year, month, dayOfMonth] = item.start.slice(0, 10).split('-').map(Number);
+      const start = new Date(year, month - 1, dayOfMonth);
+      const monday = new Date(start);
+      const day = monday.getDay() || 7;
+      monday.setDate(monday.getDate() - day + 1);
+      monday.setHours(0, 0, 0, 0);
+      const weekKey = [
+        monday.getFullYear(),
+        String(monday.getMonth() + 1).padStart(2, '0'),
+        String(monday.getDate()).padStart(2, '0'),
+      ].join('-');
+      (result[weekKey] ||= []).push(item);
+      return result;
+    }, {});
+
+    studentScheduleList.innerHTML = Object.entries(weeks)
+      .sort(([first], [second]) => first.localeCompare(second))
+      .map(([weekKey, weekItems]) => {
+        const weekStart = new Date(`${weekKey}T00:00:00`);
+        const days = Array.from({ length: 7 }, (_, index) => {
+          const date = new Date(weekStart);
+          date.setDate(date.getDate() + index);
+          return date;
+        });
+
+        return `
+          <section class="weekly-schedule">
+            <div class="weekly-schedule-header">
+              ${escapeHtml(weekStart.toLocaleDateString('tr-TR'))} - ${escapeHtml(days[6].toLocaleDateString('tr-TR'))}
+            </div>
+            <div class="weekly-schedule-grid">
+              ${days.map((date) => {
+                const dateKey = [
+                  date.getFullYear(),
+                  String(date.getMonth() + 1).padStart(2, '0'),
+                  String(date.getDate()).padStart(2, '0'),
+                ].join('-');
+                const dayItems = weekItems
+                  .filter((item) => item.start?.slice(0, 10) === dateKey)
+                  .sort((first, second) => new Date(first.start) - new Date(second.start));
+
+                return `
+                  <div class="schedule-day">
+                    <div class="schedule-day-header">
+                      <strong>${escapeHtml(date.toLocaleDateString('tr-TR', { weekday: 'short' }))}</strong>
+                      <span>${escapeHtml(date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }))}</span>
+                    </div>
+                    <div class="schedule-day-items">
+                      ${dayItems.length ? dayItems.map((item) => `
+                        <article class="schedule-event">
+                          <strong>${escapeHtml(item.title || 'Ders')}</strong>
+                          <span>${escapeHtml(new Date(item.start).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))} - ${escapeHtml(new Date(item.end).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }))}</span>
+                          <small>${escapeHtml(item.description || 'Derslik bilgisi yok')}</small>
+                        </article>
+                      `).join('') : '<span class="schedule-empty">Ders yok</span>'}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </section>
+        `;
+      })
+      .join('');
+
+    studentScheduleMessage.textContent = `${schedule.length} program kaydı BYS'den yüklendi.`;
+    studentScheduleMessage.className = 'form-message success';
+  } catch (error) {
+    studentScheduleMessage.textContent = error.message;
+    studentScheduleMessage.className = 'form-message error';
   }
 }
 
@@ -759,7 +986,7 @@ function renderManagedRequests(requests) {
     return;
   }
 
-  const isInstructor = hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+  const isInstructor = hasAcademicRole() && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
 
   staffRequestsTableBody.innerHTML = requests.map((request) => {
     const attachments = (request.attachments || []).map((attachment) =>
@@ -783,10 +1010,10 @@ function renderManagedRequests(requests) {
 
 async function loadManagedRequests() {
   try {
-    const isInstructor = hasSessionRole('Akademisyen') && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+    const isInstructor = hasAcademicRole() && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
     const requests = await apiFetch(isInstructor ? '/requests/GetAssignedRequests' : '/requests/GetAllRequests');
     if (staffRequestsTitle) {
-      staffRequestsTitle.textContent = isInstructor ? 'Bana Atanan Dilekçeler' : 'Dilekçe İnceleme Kuyruğu';
+      staffRequestsTitle.textContent = isInstructor ? 'Kendi Derslerim' : 'Dilekçe İnceleme Kuyruğu';
     }
     renderManagedRequests(requests);
   } catch (error) {
@@ -820,6 +1047,7 @@ async function initializeDashboard() {
     try {
       const profile = await apiFetch('/auth/Me');
       state.sessionUserName = profile.name || profile.email || '';
+      state.bysStudentId = profile.bysStudentId || null;
     } catch {
       state.sessionUserName = '';
     }
@@ -827,7 +1055,7 @@ async function initializeDashboard() {
     updateSidebarUser();
 
     const tasks = [];
-    if (hasSessionRole('Root', 'Admin', 'Akademisyen')) {
+    if (hasSessionRole('Root', 'Admin') || hasAcademicRole()) {
       tasks.push(loadDepartments(), loadCourses());
     } else if (hasSessionRole('Öğrenci İşleri')) {
       tasks.push(loadDepartments());
@@ -839,9 +1067,16 @@ async function initializeDashboard() {
       tasks.push(loadRolePermissions());
     }
     if (hasSessionRole('Öğrenci', 'Mezun')) {
-      tasks.push(loadStudentCourses(), loadStudentRequests());
+
+          tasks.push(
+        loadStudentCourses(),
+        loadBysStudentCourses(),
+        loadBysStudentSchedule(),
+        loadStudentRequests()
+    );
     }
-    if (hasSessionRole('Root', 'Admin', 'Öğrenci İşleri', 'Akademisyen')) {
+
+    if (hasSessionRole('Root', 'Admin', 'Öğrenci İşleri') || hasAcademicRole()) {
       tasks.push(loadManagedRequests());
     }
 
@@ -939,6 +1174,7 @@ userForm.addEventListener('submit', async (event) => {
         email: document.getElementById('userEmail').value.trim(),
         password: document.getElementById('userPassword').value,
         number: document.getElementById('userNumber').value.trim(),
+        bysStudentId: userBysStudentId.value ? Number(userBysStudentId.value) : null,
         roleId: Number(userRole.value),
         departmentIds,
       }),
@@ -1251,7 +1487,10 @@ courseInstructorsTableBody.addEventListener('click', async (event) => {
 userSearch.addEventListener('input', renderUserSearchResults);
 updateUserSelect.addEventListener('change', populateUserUpdateForm);
 userRole.addEventListener('change', updateDepartmentFieldVisibility);
-updateUserRole.addEventListener('change', updateDepartmentFieldVisibility);
+updateUserRole.addEventListener('change', () => {
+  updateDepartmentFieldVisibility();
+  updateAcademicRoleFieldVisibility();
+});
 
 updateUserForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1267,6 +1506,8 @@ updateUserForm.addEventListener('submit', async (event) => {
 
   const password = updateUserPassword.value;
   const departmentIds = isStudentOrGraduate(updateUserRole.value) ? selectedDepartmentIds(updateUserDepartments) : [];
+  const selectedRole = state.roles.find((role) => role.id === Number(updateUserRole.value));
+  const academicRole = state.roles.find((role) => ACADEMIC_ROLE_NAMES.includes(role.roleName));
 
   if (isStudentOrGraduate(updateUserRole.value) && !departmentIds.length) {
     userUpdateMessage.textContent = 'Öğrenci veya mezun için en az bir bölüm seçmelisiniz.';
@@ -1281,7 +1522,9 @@ updateUserForm.addEventListener('submit', async (event) => {
         name: document.getElementById('updateUserName').value.trim(),
         email: document.getElementById('updateUserEmail').value.trim(),
         number: document.getElementById('updateUserNumber').value.trim(),
+        bysStudentId: updateUserBysStudentId.value ? Number(updateUserBysStudentId.value) : null,
         roleId: Number(document.getElementById('updateUserRole').value),
+        academicRoleId: updateUserAcademicRole.checked && !ACADEMIC_ROLE_NAMES.includes(selectedRole?.roleName) ? academicRole?.id : null,
         departmentIds,
         ...(password ? { password } : {}),
       }),
