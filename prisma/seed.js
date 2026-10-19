@@ -10,7 +10,7 @@ async function main() {
     create: { roleName: 'Root' },
   });
 
-  for (const roleName of ['Öğrenci', 'Mezun', 'Akademisyen', 'Öğretim Görevlisi', 'Admin', 'Öğrenci İşleri']) {
+  for (const roleName of ['Öğrenci', 'Mezun', 'Akademisyen', 'Admin', 'Öğrenci İşleri']) {
     await prisma.role.upsert({
       where: { roleName },
       update: {},

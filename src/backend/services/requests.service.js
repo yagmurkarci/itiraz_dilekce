@@ -193,7 +193,7 @@ exports.replyToRequest = async ({ requestId, instructorId, answer }) => {
 };
 
 exports.updateRequestStatus = async ({ requestId, status, answer, assignedTo, newGrade, rejectionReason }) => {
-  const request = await prisma.request.findUnique({ where: { id: Numbçolurer(requestId) } });
+  const request = await prisma.request.findUnique({ where: { id: Number(requestId) } });
   if (!request) throw new Error('Request not found');
 
   const validStatuses = ['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'ANSWERED'];

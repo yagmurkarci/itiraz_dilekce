@@ -168,7 +168,7 @@ exports.updateUser = async (id, userData, allowedRoleNames = null) => {
   if (userData.academicRoleId && !additionalRole) {
     throw new Error('Additional role not found');
   }
-  if (additionalRole && (selectedRole.roleName !== 'Admin' || !['Akademisyen', 'Öğretim Görevlisi'].includes(additionalRole.roleName))) {
+  if (additionalRole && (selectedRole.roleName !== 'Admin' || !['Akademisyen'].includes(additionalRole.roleName))) {
     throw new Error('Only Admin users can receive an additional academic role');
   }
 
@@ -246,8 +246,18 @@ exports.deleteUser = async (id, allowedRoleNames = null) => {
     throw new Error('You can only delete student or graduate accounts');
   }
 
+  const userId = parseInt(id, 10);
+  const [requestCount, attachmentCount] = await Promise.all([
+    prisma.request.count({ where: { createdBy: userId } }),
+    prisma.requestAttachment.count({ where: { uploadedBy: userId } }),
+  ]);
+
+  if (requestCount > 0 || attachmentCount > 0) {
+    throw new Error('Bu kullanıcıya ait dilekçe veya dosya kayıtları var. Silmeden önce onları kaldırmalısınız.');
+  }
+
   const deletedUser = await prisma.user.delete({
-    where: { id: parseInt(id, 10) },
+    where: { id: userId },
   });
 
   return { message: 'User deleted successfully', user: deletedUser };

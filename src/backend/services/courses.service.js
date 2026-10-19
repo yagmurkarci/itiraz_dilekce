@@ -59,14 +59,15 @@ exports.createCourse = async (courseCode, courseName, departmentId, departmentId
     throw new Error('At least one department is required');
   }
 
-  const existingCourse = await prisma.course.findUnique({
+  const existingCourse = await prisma.course.findFirst({
     where: {
-      courseCode
+      courseCode,
+      courseName
     }
   });
 
   if (existingCourse) {
-    throw new Error('Course code already exists');
+    throw new Error('Course already exists');
   }
 
   const course = await prisma.course.create({

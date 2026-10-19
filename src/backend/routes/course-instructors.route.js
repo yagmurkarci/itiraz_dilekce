@@ -39,4 +39,12 @@ router.delete('/DeleteAssignment/:id', dynamicAuthorize, requireManager, async (
 	}
 });
 
+router.post('/SyncFromBys', dynamicAuthorize, requireManager, async (req, res) => {
+	try {
+		res.status(200).json(await service.syncFromBys({ ogrenciId: req.body.ogrenciId }));
+	} catch (error) {
+		res.status(400).json({ error: error.message });
+	}
+});
+
 module.exports = router;

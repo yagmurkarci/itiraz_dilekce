@@ -26,7 +26,7 @@ router.get('/GetAcademics', dynamicAuthorize, async (req, res) => {
     try {
         const canListAcademics = req.user.roles?.some(({ roleName }) => ['Root', 'Admin', 'Öğrenci İşleri'].includes(roleName));
         if (!canListAcademics) return res.status(403).json({ error: 'You cannot list academics' });
-        const academics = await userService.getUsers(['Akademisyen', 'Öğretim Görevlisi']);
+        const academics = await userService.getUsers(['Akademisyen']);
         res.status(200).json(academics.map(({ id, name, email }) => ({ id, name, email })));
     } catch (error) {
         res.status(500).json({ error: error.message });

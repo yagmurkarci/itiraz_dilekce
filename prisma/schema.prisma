@@ -79,8 +79,9 @@ model UserDepartment {
 
 model Course {
   id           Int      @id @default(autoincrement())
-  courseCode   String   @unique @map("course_code")
+  courseCode   String   @map("course_code")
   courseName   String   @map("course_name")
+  bysCourseId  Int?     @unique @map("bys_course_id")
   departmentId Int      @map("department_id")
   createdAt    DateTime @default(now()) @map("created_at")
 

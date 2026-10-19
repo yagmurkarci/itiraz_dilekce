@@ -39,6 +39,7 @@ module.exports = async function seedEndpoints(prisma) {
     { endpointPath: '/GetAssignments', method: 'GET', description: 'Ders-hoca eşleşmelerini getirir', routerPath: '/api/course-instructors' },
     { endpointPath: '/AssignInstructor', method: 'POST', description: 'Derse hoca atar', routerPath: '/api/course-instructors' },
     { endpointPath: '/DeleteAssignment/:id', method: 'DELETE', description: 'Ders-hoca eşleşmesini siler', routerPath: '/api/course-instructors' },
+    { endpointPath: '/SyncFromBys', method: 'POST', description: 'BYS ders-hoca eşleştirmesini senkronize eder', routerPath: '/api/course-instructors' },
 
     // Requests
     { endpointPath: '/GetAllRequests', method: 'GET', description: 'Tüm dilekçeleri getirir', routerPath: '/api/requests' },
@@ -56,6 +57,10 @@ module.exports = async function seedEndpoints(prisma) {
     // Request Attachments
     { endpointPath: '/UploadRequestAttachment', method: 'POST', description: 'Dilekçe dosyasını yükler', routerPath: '/api/request-attachments' },
     { endpointPath: '/GetRequestAttachments/:id', method: 'GET', description: 'Dilekçeye ait ek dosyaları getirir', routerPath: '/api/request-attachments' },
+
+    // BYS
+    { endpointPath: '/student-courses', method: 'GET', description: 'Öğrencinin BYS derslerini getirir', routerPath: '/api/bys' },
+    { endpointPath: '/student-schedule', method: 'GET', description: 'Öğrencinin BYS ders programını getirir', routerPath: '/api/bys' },
 
     // Endpoints
     { endpointPath: '/GetAllEndpoints', method: 'GET', description: 'Tüm metotları getirir', routerPath: '/api/endpoints' },

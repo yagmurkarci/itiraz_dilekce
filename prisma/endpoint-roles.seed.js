@@ -43,6 +43,8 @@ module.exports = async function(prisma) {
     ['/api/request-attachments', 'POST', '/UploadRequestAttachment'],
     ['/api/requests', 'PUT', '/UpdateRequest/:id'],
     ['/api/requests', 'DELETE', '/DeleteRequest/:id'],
+    ['/api/bys', 'GET', '/student-courses'],
+    ['/api/bys', 'GET', '/student-schedule'],
   ];
   const adminEndpoints = [
     ['/api/roles', 'GET', '/GetAllRoles'],
@@ -63,6 +65,7 @@ module.exports = async function(prisma) {
     ['/api/course-instructors', 'GET', '/GetAssignments'],
     ['/api/course-instructors', 'POST', '/AssignInstructor'],
     ['/api/course-instructors', 'DELETE', '/DeleteAssignment/:id'],
+    ['/api/course-instructors', 'POST', '/SyncFromBys'],
     ['/api/requests', 'GET', '/GetAllRequests'],
     ['/api/requests', 'GET', '/GetRequestsByUser/:id'],
     ['/api/requests', 'POST', '/CreateRequest'],
@@ -71,6 +74,8 @@ module.exports = async function(prisma) {
     ['/api/requests', 'PUT', '/RejectRequest/:id'],
     ['/api/request-attachments', 'POST', '/UploadRequestAttachment'],
     ['/api/request-attachments', 'GET', '/GetRequestAttachments/:id'],
+    ['/api/bys', 'GET', '/student-courses'],
+    ['/api/bys', 'GET', '/student-schedule'],
   ];
   const studentAffairsEndpoints = [
     ['/api/roles', 'GET', '/GetAllRoles'],
@@ -93,7 +98,6 @@ module.exports = async function(prisma) {
     'Öğrenci': readAcademicEndpoints,
     'Mezun': readAcademicEndpoints,
     'Akademisyen': [...readAcademicEndpoints, ...instructorEndpoints],
-    'Öğretim Görevlisi': [...readAcademicEndpoints, ...instructorEndpoints],
     'Admin': adminEndpoints,
     'Öğrenci İşleri': studentAffairsEndpoints,
   };

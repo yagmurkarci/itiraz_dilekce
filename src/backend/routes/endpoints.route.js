@@ -7,7 +7,7 @@ const dynamicAuthorize = require('../middleware/dynamic-authorize');
 
 router.use(verifyToken);
 
-router.get('/GetAllEndpoints', async (req, res) => {
+router.get('/GetAllEndpoints', dynamicAuthorize, async (req, res) => {
     try {
         const allEndpoints = await endpointService.getAllEndpoints();
         res.status(200).json(allEndpoints);

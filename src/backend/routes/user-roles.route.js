@@ -4,6 +4,8 @@ const userRoleService = require('../services/user-roles.service');
 const verifyToken = require('../middleware/authMiddleware');
 const dynamicAuthorize = require('../middleware/dynamic-authorize')
 
+router.use(verifyToken);
+
 router.get('/GetAllUserRoles', dynamicAuthorize,  async (req, res) => {
     try {
         const allUserRoles = await userRoleService.getAllUserRoles();

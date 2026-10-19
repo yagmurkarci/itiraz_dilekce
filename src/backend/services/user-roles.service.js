@@ -9,7 +9,8 @@ exports.getAllUserRoles = async () => {
       include: {
         user: {
           select: {
-            username: true,  // Sadece username'yi almak için
+            name: true,
+            email: true,
           },
         },
         role: {
@@ -23,7 +24,8 @@ exports.getAllUserRoles = async () => {
     // Veriyi döndür
     return userRoles.map(userRole => ({
       id: userRole.id, 
-      username: userRole.user.username,
+      name: userRole.user.name,
+      email: userRole.user.email,
       roleName: userRole.role.roleName,
     }));
   } catch (error) {
@@ -34,23 +36,22 @@ exports.getAllUserRoles = async () => {
 
 exports.createUserRole = async (userId, roleId, createdUserId) => {
   try {
+    const parsedUserId = Number(userId);
+    const parsedRoleId = Number(roleId);
+
     // Kendi rolünü verme durumu kontrolü
-    if (userId === createdUserId) {
+    if (createdUserId !== undefined && createdUserId !== null && parsedUserId === Number(createdUserId)) {
       throw new Error('A user cannot assign a role to themselves.');
     }
-    
-      
 
-    
     const newUserRole = await prisma.userRole.create({
       data: {
         user: {
-          connect: { id: userId },  
+          connect: { id: parsedUserId },
         },
         role: {
-          connect: { id: roleId },  
+          connect: { id: parsedRoleId },
         },
-        createdUserId: createdUserId,  
       },
     });
 
@@ -101,12 +102,6 @@ exports.deleteUserRoleById = async (userRoleId) => {
     }
 
     
-    // Kendi rolünü silmek isteyen kullanıcıyı kontrol et
-    if (userRole.user.id === userRole.createdUserId) {
-      throw new Error('User cannot delete their own role');
-    }
-      
-
     await prisma.userRole.delete({
       where: {
         id: parsedUserRoleId,  

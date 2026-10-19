@@ -58,6 +58,10 @@ const instructorCourseSelect = document.getElementById('instructorCourseSelect')
 const instructorUserSelect = document.getElementById('instructorUserSelect');
 const courseInstructorsTableBody = document.getElementById('courseInstructorsTableBody');
 const courseInstructorMessage = document.getElementById('courseInstructorMessage');
+const bysSyncStudentId = document.getElementById('bysSyncStudentId');
+const bysSyncButton = document.getElementById('bysSyncButton');
+const bysSyncMessage = document.getElementById('bysSyncMessage');
+const instructorFilterSelect = document.getElementById('instructorFilterSelect');
 const roleForm = document.getElementById('roleForm');
 const roleFormMessage = document.getElementById('roleFormMessage');
 const rolesTableBody = document.getElementById('rolesTableBody');
@@ -86,6 +90,11 @@ const requestAttachment = document.getElementById('requestAttachment');
 const studentRequestMessage = document.getElementById('studentRequestMessage');
 const studentRequestsList = document.getElementById('studentRequestsList');
 const navButtons = document.querySelectorAll('.nav-item');
+const notificationModal = document.getElementById('notificationModal');
+const notificationIcon = document.getElementById('notificationIcon');
+const notificationTitle = document.getElementById('notificationTitle');
+const notificationMessage = document.getElementById('notificationMessage');
+const notificationClose = document.getElementById('notificationClose');
 
 const state = {
   departments: [],
@@ -161,7 +170,7 @@ function getSessionUserName() {
   }
 }
 
-const ACADEMIC_ROLE_NAMES = ['Akademisyen', 'Öğretim Görevlisi'];
+const ACADEMIC_ROLE_NAMES = ['Akademisyen'];
 
 function hasAcademicRole() {
   return state.roleNames.some((roleName) => ACADEMIC_ROLE_NAMES.includes(roleName));
@@ -329,6 +338,30 @@ async function apiFetch(url, options = {}) {
   return data;
 }
 
+const NOTIFICATION_ICONS = { success: '✓', error: '!', info: 'i' };
+
+function showNotification(type, title, message) {
+  if (!notificationModal) return;
+
+  notificationIcon.className = `modal-icon ${type}`;
+  notificationIcon.textContent = NOTIFICATION_ICONS[type] || 'i';
+  notificationTitle.textContent = title;
+  notificationMessage.textContent = message || '';
+  notificationModal.classList.remove('hidden');
+}
+
+function hideNotification() {
+  notificationModal?.classList.add('hidden');
+}
+
+notificationClose?.addEventListener('click', hideNotification);
+notificationModal?.addEventListener('click', (event) => {
+  if (event.target === notificationModal) hideNotification();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') hideNotification();
+});
+
 function renderDepartmentCheckboxes() {
   departmentCheckboxList.innerHTML = state.departments
     .map(
@@ -376,6 +409,10 @@ function selectedDepartmentIds(container) {
 function updateDepartmentFieldVisibility() {
   createUserDepartmentsField.classList.toggle('hidden', !isStudentOrGraduate(userRole.value));
   updateUserDepartmentsField.classList.toggle('hidden', !updateUserSelect.value || !isStudentOrGraduate(updateUserRole.value));
+
+  const isStudentAffairs = hasSessionRole('Öğrenci İşleri');
+  document.getElementById('createUserBysStudentIdField')?.classList.toggle('hidden', isStudentAffairs);
+  document.getElementById('updateUserBysStudentIdField')?.classList.toggle('hidden', isStudentAffairs);
 }
 
 function updateAcademicRoleFieldVisibility() {
@@ -543,6 +580,7 @@ function populateUserUpdateForm() {
 async function loadUsers() {
   const users = await apiFetch('/users/GetAllUsers');
   state.users = users;
+  renderBysStudentOptions();
 
   usersTableBody.innerHTML = users
     .map(
@@ -605,7 +643,7 @@ async function loadCourses() {
           `
         )
         .join('')
-    : '<div class="department-course-group"><h4>Henüz ders atan bölüm yok</h4></div>';
+    : '<div class="department-course-group"><h4>Henüz ders atanan program yok</h4></div>';
 
   if (hasSessionRole('Root', 'Admin')) {
     await loadCourseInstructorAssignments();
@@ -626,9 +664,53 @@ async function loadCourseInstructorAssignments() {
   instructorUserSelect.innerHTML = academics
     .map(({ id, name }) => `<option value="${id}">${escapeHtml(name)}</option>`)
     .join('');
+
+  if (instructorFilterSelect) {
+    const previousFilter = instructorFilterSelect.value;
+    instructorFilterSelect.innerHTML = '<option value="">Tümü</option>' + academics
+      .map(({ id, name }) => `<option value="${id}">${escapeHtml(name)}</option>`)
+      .join('');
+    instructorFilterSelect.value = academics.some(({ id }) => String(id) === previousFilter) ? previousFilter : '';
+  }
+
+  renderBysStudentOptions();
+  renderCourseInstructorAssignments();
+}
+
+function renderBysStudentOptions() {
+  if (!bysSyncStudentId) return;
+
+  const previousStudent = bysSyncStudentId.value;
+  const students = state.users.filter((user) =>
+    user.bysStudentId
+    && (user.roles || [user.role]).filter(Boolean).some(({ roleName }) => ['Öğrenci', 'Mezun'].includes(roleName))
+  );
+
+  bysSyncStudentId.innerHTML = students.length
+    ? students.map((user) => `<option value="${user.bysStudentId}">${escapeHtml(user.name)} (BYS: ${user.bysStudentId})</option>`).join('')
+    : '<option value="">BYS öğrenci bulunamadı</option>';
+
+  if (students.some((user) => String(user.bysStudentId) === previousStudent)) {
+    bysSyncStudentId.value = previousStudent;
+  }
+}
+
+function renderCourseInstructorAssignments() {
+  const selectedInstructorId = Number(instructorFilterSelect?.value || 0);
+  const assignments = selectedInstructorId
+    ? state.courseInstructorAssignments.filter(({ instructor }) => instructor.id === selectedInstructorId)
+    : state.courseInstructorAssignments;
+
   courseInstructorsTableBody.innerHTML = assignments.length
-    ? assignments.map(({ id, course, instructor }) => `<tr><td>${escapeHtml(course.courseCode)} - ${escapeHtml(course.courseName)}</td><td>${escapeHtml(instructor.name)}</td><td><button class="delete-btn" type="button" data-delete-instructor-assignment="${id}">Kaldır</button></td></tr>`).join('')
-    : '<tr><td colspan="3">Henüz ders-hoca eşleştirmesi yok.</td></tr>';
+    ? assignments.map(({ id, course, instructor }) => {
+        const programs = (course.courseDepartments || [])
+          .map((item) => item.department?.departmentName)
+          .filter(Boolean);
+        const programText = programs.length ? programs.join(', ') : course.department?.departmentName || '-';
+
+        return `<tr><td>${escapeHtml(course.courseCode)} - ${escapeHtml(course.courseName)}</td><td>${escapeHtml(programText)}</td><td>${escapeHtml(instructor.name)}</td><td><button class="delete-btn" type="button" data-delete-instructor-assignment="${id}">Kaldır</button></td></tr>`;
+      }).join('')
+    : '<tr><td colspan="4">Henüz ders-hoca eşleştirmesi yok.</td></tr>';
 }
 
 async function loadStudentCourses() {
@@ -647,13 +729,13 @@ async function loadStudentCourses() {
       apiFetch('/courses/GetStudentDepartmentCourses'),
       apiFetch(`/bys/student-courses?ogrenciId=${state.bysStudentId}`),
     ]);
-    const bysCourseCodes = new Set(
+    const bysCourseIds = new Set(
       (bysData.dersler || [])
-        .map((course) => String(course.dersKodu || '').trim())
-        .filter(Boolean)
+        .map((course) => Number(course.dersId))
+        .filter((courseId) => Number.isInteger(courseId) && courseId > 0)
     );
-    const studentCourses = bysCourseCodes.size
-      ? courses.filter((course) => bysCourseCodes.has(String(course.courseCode || '').trim()))
+    const studentCourses = bysCourseIds.size
+      ? courses.filter((course) => course.bysCourseId && bysCourseIds.has(Number(course.bysCourseId)))
       : [];
 
     studentRequestCourse.innerHTML = '<option value="">Ders seçin</option>' + courses
@@ -986,22 +1068,29 @@ function renderManagedRequests(requests) {
     return;
   }
 
-  const isInstructor = hasAcademicRole() && !hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
+  const sessionUserId = getSessionUserId();
+  const hasStaffManagementRole = hasSessionRole('Root', 'Admin', 'Öğrenci İşleri');
 
   staffRequestsTableBody.innerHTML = requests.map((request) => {
     const attachments = (request.attachments || []).map((attachment) =>
       `<a href="${escapeHtml(attachment.filePath)}" target="_blank" rel="noopener">${escapeHtml(attachment.fileName)}</a>`
     ).join('<br>') || 'Ek dosya yok';
     const isClosedRequest = request.status === 'REJECTED' || request.status === 'ANSWERED';
-    const actions = isInstructor
-      ? isClosedRequest
-        ? `<div class="request-review-cell"><div class="request-attachments">Öğrenci ekleri:<br>${attachments}</div><div class="request-status-date">${escapeHtml(getRequestStatusLabel(request.status))}${request.rejectionReason ? `<small>${escapeHtml(request.rejectionReason)}</small>` : ''}</div></div>`
-        : `<div class="request-review-cell"><div class="request-attachments">Öğrenci ekleri:<br>${attachments}</div><label class="file-field"><span>İncelenmiş sınav kağıdı (PDF/görsel)</span><input type="file" data-exam-paper="${request.id}" accept="application/pdf,image/*" required /></label><textarea data-instructor-answer="${request.id}" rows="3" placeholder="İnceleme yanıtı" required>${escapeHtml(request.answer || '')}</textarea><button class="primary-button small" type="button" data-reply-request="${request.id}">Dosyayı yükle ve yanıtla</button></div>`
-      : request.status === 'REJECTED' || request.status === 'ANSWERED'
-        ? `<div>${escapeHtml(getRequestStatusLabel(request.status))}${request.rejectionReason ? `<small>${escapeHtml(request.rejectionReason)}</small>` : ''}</div>`
-        : `<div class="request-review-cell"><select data-forward-instructor="${request.id}" aria-label="Derse atanmış hoca"><option value="">Atanmış hocayı seçin</option>${(request.course?.instructors || []).map(({ instructor }) => `<option value="${instructor.id}">${escapeHtml(instructor.name)}</option>`).join('')}</select><button class="secondary-button" type="button" data-forward-request="${request.id}" ${(request.course?.instructors || []).length ? '' : 'disabled'}>Hocaya yönlendir</button><textarea data-rejection-reason="${request.id}" rows="2" placeholder="Ret gerekçesi"></textarea><button class="delete-btn" type="button" data-reject-request="${request.id}">Gerekçeli reddet</button></div>`;
+    const isAssignedToMe = Number(request.assignedTo) === sessionUserId;
+    const canReplyAsInstructor = hasAcademicRole() && isAssignedToMe;
 
-    const studentAttachments = !isInstructor && request.attachments?.length
+    let actions;
+    if (isClosedRequest) {
+      actions = `<div class="request-review-cell"><div class="request-status-date">${escapeHtml(getRequestStatusLabel(request.status))}${request.rejectionReason ? `<small>${escapeHtml(request.rejectionReason)}</small>` : ''}</div></div>`;
+    } else if (canReplyAsInstructor) {
+      actions = `<div class="request-review-cell"><div class="request-attachments">Öğrenci ekleri:<br>${attachments}</div><label class="file-field"><span>İncelenmiş sınav kağıdı (PDF/görsel)</span><input type="file" data-exam-paper="${request.id}" accept="application/pdf,image/*" required /></label><textarea data-instructor-answer="${request.id}" rows="3" placeholder="İnceleme yanıtı" required>${escapeHtml(request.answer || '')}</textarea><button class="primary-button small" type="button" data-reply-request="${request.id}">Dosyayı yükle ve yanıtla</button></div>`;
+    } else if (hasStaffManagementRole) {
+      actions = `<div class="request-review-cell"><select data-forward-instructor="${request.id}" aria-label="Derse atanmış hoca"><option value="">Atanmış hocayı seçin</option>${(request.course?.instructors || []).map(({ instructor }) => `<option value="${instructor.id}">${escapeHtml(instructor.name)}</option>`).join('')}</select><button class="secondary-button" type="button" data-forward-request="${request.id}" ${(request.course?.instructors || []).length ? '' : 'disabled'}>Hocaya yönlendir</button><textarea data-rejection-reason="${request.id}" rows="2" placeholder="Ret gerekçesi"></textarea><button class="delete-btn" type="button" data-reject-request="${request.id}">Gerekçeli reddet</button></div>`;
+    } else {
+      actions = '<div class="request-status-date">Öğrenci İşleri yönlendirmesi bekleniyor</div>';
+    }
+
+    const studentAttachments = !canReplyAsInstructor && request.attachments?.length
       ? `<div class="request-attachments">Ekler:<br>${attachments}</div>`
       : '';
     return `<tr data-request-row="${request.id}"><td>${escapeHtml(request.creator?.name || '-')}</td><td><strong>${escapeHtml(request.title)}</strong><small>${escapeHtml(request.description)}</small>${studentAttachments}</td><td>${escapeHtml(request.course?.courseName || '-')}<small>${escapeHtml(request.department?.departmentName || '-')}</small></td><td>${new Date(request.createdAt).toLocaleDateString('tr-TR')}</td><td>${actions}</td></tr>`;
@@ -1132,7 +1221,7 @@ courseForm.addEventListener('submit', async (event) => {
   courseFormMessage.textContent = '';
 
   if (!departmentId) {
-    courseFormMessage.textContent = 'En az bir bölüm seçmelisiniz.';
+    courseFormMessage.textContent = 'En az bir program seçmelisiniz.';
     courseFormMessage.className = 'form-message error';
     return;
   }
@@ -1161,7 +1250,7 @@ userForm.addEventListener('submit', async (event) => {
   const departmentIds = isStudentOrGraduate(userRole.value) ? selectedDepartmentIds(createUserDepartments) : [];
 
   if (isStudentOrGraduate(userRole.value) && !departmentIds.length) {
-    userFormMessage.textContent = 'Öğrenci veya mezun için en az bir bölüm seçmelisiniz.';
+    userFormMessage.textContent = 'Öğrenci veya mezun için en az bir program seçmelisiniz.';
     userFormMessage.className = 'form-message error';
     return;
   }
@@ -1293,14 +1382,12 @@ studentRequestForm.addEventListener('submit', async (event) => {
   const selectedCourse = studentCourses.find((course) => course.id === selectedCourseId);
 
   if (!selectedCourseId || !selectedCourse) {
-    studentRequestMessage.textContent = 'Lütfen ders seçin.';
-    studentRequestMessage.className = 'form-message error';
+    showNotification('error', 'Ders Seçilmedi', 'Lütfen bir ders seçin.');
     return;
   }
 
   if (!requestTitle.value.trim() || !requestDescription.value.trim()) {
-    studentRequestMessage.textContent = 'Konu ve detay alanları zorunludur.';
-    studentRequestMessage.className = 'form-message error';
+    showNotification('error', 'Eksik Bilgi', 'Konu ve detay alanları zorunludur.');
     return;
   }
 
@@ -1335,13 +1422,16 @@ studentRequestForm.addEventListener('submit', async (event) => {
     state.editingRequestId = null;
     studentRequestSubmit.textContent = 'Dilekçe Gönder';
     studentRequestCancelEdit.classList.add('hidden');
-    studentRequestMessage.textContent = isEditing ? 'Dilekçe güncellendi.' : 'Dilekçe başarıyla gönderildi.';
-    studentRequestMessage.className = 'form-message success';
+    studentRequestMessage.textContent = '';
+    showNotification(
+      'success',
+      isEditing ? 'Dilekçe Güncellendi' : 'Dilekçe Gönderildi',
+      isEditing ? 'Dilekçeniz başarıyla güncellendi.' : 'Dilekçeniz başarıyla gönderildi.'
+    );
     await Promise.all([loadStudentCourses(), loadStudentRequests()]);
     setPage('home');
   } catch (error) {
-    studentRequestMessage.textContent = error.message;
-    studentRequestMessage.className = 'form-message error';
+    showNotification('error', 'Dilekçe Gönderilemedi', error.message);
   }
 });
 
@@ -1351,7 +1441,7 @@ staffRequestsTableBody.addEventListener('click', async (event) => {
 
   const requestId = actionButton.dataset.forwardRequest || actionButton.dataset.rejectRequest || actionButton.dataset.replyRequest;
   const row = actionButton.closest('[data-request-row]');
-  staffRequestsMessage.textContent = '';
+  let successMessage = '';
 
   try {
     if (actionButton.hasAttribute('data-forward-request')) {
@@ -1361,7 +1451,7 @@ staffRequestsTableBody.addEventListener('click', async (event) => {
         method: 'PUT',
         body: JSON.stringify({ instructorId: Number(instructorId) }),
       });
-      staffRequestsMessage.textContent = 'Dilekçe ilgili hocaya yönlendirildi.';
+      successMessage = 'Dilekçe ilgili hocaya yönlendirildi.';
     } else if (actionButton.hasAttribute('data-reject-request')) {
       const rejectionReason = row.querySelector(`[data-rejection-reason="${requestId}"]`).value.trim();
       if (!rejectionReason) throw new Error('Ret gerekçesi yazın.');
@@ -1369,7 +1459,7 @@ staffRequestsTableBody.addEventListener('click', async (event) => {
         method: 'PUT',
         body: JSON.stringify({ rejectionReason }),
       });
-      staffRequestsMessage.textContent = 'Dilekçe gerekçesiyle reddedildi.';
+      successMessage = 'Dilekçe gerekçesiyle reddedildi.';
     } else {
       const file = row.querySelector(`[data-exam-paper="${requestId}"]`).files[0];
       const answer = row.querySelector(`[data-instructor-answer="${requestId}"]`).value.trim();
@@ -1389,13 +1479,14 @@ staffRequestsTableBody.addEventListener('click', async (event) => {
         method: 'PUT',
         body: JSON.stringify({ answer }),
       });
-      staffRequestsMessage.textContent = 'Sınav kağıdı yüklendi ve yanıt öğrenciye iletildi.';
+      successMessage = 'Sınav kağıdı yüklendi ve yanıt öğrenciye iletildi.';
     }
-    staffRequestsMessage.className = 'form-message success';
+    staffRequestsMessage.textContent = '';
+    showNotification('success', 'İşlem Tamamlandı', successMessage);
     await Promise.all([loadManagedRequests(), loadStudentRequests()]);
   } catch (error) {
-    staffRequestsMessage.textContent = error.message;
-    staffRequestsMessage.className = 'form-message error';
+    staffRequestsMessage.textContent = '';
+    showNotification('error', 'İşlem Başarısız', error.message);
   }
 });
 
@@ -1460,13 +1551,11 @@ courseInstructorForm.addEventListener('submit', async (event) => {
         instructorId: Number(instructorUserSelect.value),
       }),
     });
-    courseInstructorMessage.textContent = 'Hoca derse atandı.';
-    courseInstructorMessage.className = 'form-message success';
+    showNotification('success', 'Hoca Atandı', 'Hoca derse başarıyla atandı.');
     await loadCourseInstructorAssignments();
     await loadManagedRequests();
   } catch (error) {
-    courseInstructorMessage.textContent = error.message;
-    courseInstructorMessage.className = 'form-message error';
+    showNotification('error', 'Atama Başarısız', error.message);
   }
 });
 
@@ -1476,13 +1565,52 @@ courseInstructorsTableBody.addEventListener('click', async (event) => {
 
   try {
     await apiFetch(`/course-instructors/DeleteAssignment/${removeButton.dataset.deleteInstructorAssignment}`, { method: 'DELETE' });
+    showNotification('success', 'Atama Kaldırıldı', 'Ders-hoca ataması kaldırıldı.');
     await loadCourseInstructorAssignments();
     await loadManagedRequests();
   } catch (error) {
-    courseInstructorMessage.textContent = error.message;
-    courseInstructorMessage.className = 'form-message error';
+    showNotification('error', 'İşlem Başarısız', error.message);
   }
 });
+
+bysSyncButton?.addEventListener('click', async () => {
+  const ogrenciId = bysSyncStudentId ? bysSyncStudentId.value : '';
+
+  if (!ogrenciId) {
+    showNotification('error', 'Öğrenci Seçilmedi', 'Lütfen BYS öğrenci seçin.');
+    return;
+  }
+
+  bysSyncButton.disabled = true;
+  bysSyncMessage.textContent = "BYS'ten dersler ve hocalar çekiliyor...";
+  bysSyncMessage.className = 'form-message';
+
+  try {
+    const result = await apiFetch('/course-instructors/SyncFromBys', {
+      method: 'POST',
+      body: JSON.stringify({ ogrenciId }),
+    });
+
+    const credentials = (result.createdAccounts || []).length
+      ? ` Yeni hesaplar: ${result.createdAccounts.map((account) => `${account.name} (${account.email} / ${account.temporaryPassword})`).join(', ')}`
+      : '';
+
+    bysSyncMessage.textContent = '';
+    showNotification(
+      'success',
+      'BYS Eşleştirmesi Tamamlandı',
+      `${result.courses} ders, ${result.assignments} eşleştirme, ${result.instructorCount} hoca işlendi.${credentials}`
+    );
+    await loadCourses();
+    await loadManagedRequests();
+  } catch (error) {
+    showNotification('error', 'BYS Eşleştirmesi Başarısız', error.message);
+  } finally {
+    bysSyncButton.disabled = false;
+  }
+});
+
+instructorFilterSelect?.addEventListener('change', renderCourseInstructorAssignments);
 
 userSearch.addEventListener('input', renderUserSearchResults);
 updateUserSelect.addEventListener('change', populateUserUpdateForm);
@@ -1510,7 +1638,7 @@ updateUserForm.addEventListener('submit', async (event) => {
   const academicRole = state.roles.find((role) => ACADEMIC_ROLE_NAMES.includes(role.roleName));
 
   if (isStudentOrGraduate(updateUserRole.value) && !departmentIds.length) {
-    userUpdateMessage.textContent = 'Öğrenci veya mezun için en az bir bölüm seçmelisiniz.';
+    userUpdateMessage.textContent = 'Öğrenci veya mezun için en az bir program seçmelisiniz.';
     userUpdateMessage.className = 'form-message error';
     return;
   }

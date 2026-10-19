@@ -85,7 +85,7 @@
                 <strong id="courseCount">0</strong>
               </div>
               <div class="stat-card">
-                <span>Toplam Bölüm</span>
+                <span>Toplam Program</span>
                 <strong id="departmentCount">0</strong>
               </div>
             </div>
@@ -179,7 +179,7 @@
                     <tr>
                       <th>Öğrenci</th>
                       <th>Konu</th>
-                      <th>Ders / Bölüm</th>
+                      <th>Ders / Program</th>
                       <th>Tarih</th>
                       <th>İşlem</th>
                     </tr>
@@ -232,7 +232,7 @@
 
                 <div class="field-row single">
                   <label>
-                    <span>Bölümler</span>
+                    <span>Programlar</span>
                     <div id="departmentCheckboxList" class="department-checkbox-list"></div>
                   </label>
                 </div>
@@ -256,7 +256,7 @@
                       <th>ID</th>
                       <th>Ders Kodu</th>
                       <th>Ders Adı</th>
-                      <th>Bölüm</th>
+                      <th>Program</th>
                       <th>İşlem</th>
                     </tr>
                   </thead>
@@ -283,9 +283,27 @@
                 <div class="form-actions"><button class="primary-button" type="submit">Hocayı Ata</button></div>
                 <p id="courseInstructorMessage" class="form-message"></p>
               </form>
+              <div class="bys-sync">
+                <div class="field-row">
+                  <label>
+                    <span>BYS Öğrenci</span>
+                    <select id="bysSyncStudentId"></select>
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button id="bysSyncButton" class="secondary-button" type="button">BYS'ten Ders-Hoca Eşleştir</button>
+                </div>
+                <p id="bysSyncMessage" class="form-message"></p>
+              </div>
+              <div class="field-row single">
+                <label>
+                  <span>Hoca</span>
+                  <select id="instructorFilterSelect"></select>
+                </label>
+              </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Ders</th><th>Öğretim elemanı</th><th>İşlem</th></tr></thead>
+                  <thead><tr><th>Ders</th><th>Program</th><th>Öğretim elemanı</th><th>İşlem</th></tr></thead>
                   <tbody id="courseInstructorsTableBody"></tbody>
                 </table>
               </div>
@@ -293,7 +311,7 @@
 
             <section class="panel mapping-panel">
               <div class="panel-header">
-                <h3>Bölümlere Göre Ders Dağılımı</h3>
+                <h3>Programlara Göre Ders Dağılımı</h3>
               </div>
               <div id="departmentCourseMap" class="department-course-map"></div>
             </section>
@@ -332,7 +350,7 @@
                     <input id="userNumber" name="number" type="tel" inputmode="numeric" maxlength="11" pattern="05[0-9]{9}" placeholder="05xxxxxxxxx" />
                   </label>
 
-                  <label>
+                  <label id="createUserBysStudentIdField">
                     <span>BYS Öğrenci ID</span>
                     <input id="userBysStudentId" name="bysStudentId" type="number" min="1" placeholder="161552" />
                   </label>
@@ -347,7 +365,7 @@
 
                 <div id="createUserDepartmentsField" class="field-row single hidden">
                   <label>
-                    <span>Öğrencinin Bölümleri</span>
+                    <span>Öğrencinin Programları</span>
                     <div id="createUserDepartments" class="department-checkbox-list"></div>
                   </label>
                 </div>
@@ -393,7 +411,7 @@
                   </label>
                 </div>
 
-                <div class="field-row single">
+                <div id="updateUserBysStudentIdField" class="field-row single">
                   <label>
                     <span>BYS Öğrenci ID</span>
                     <input id="updateUserBysStudentId" type="number" min="1" placeholder="161552" />
@@ -421,7 +439,7 @@
 
                 <div id="updateUserDepartmentsField" class="field-row single hidden">
                   <label>
-                    <span>Öğrencinin Bölümleri</span>
+                    <span>Öğrencinin Programları</span>
                     <div id="updateUserDepartments" class="department-checkbox-list"></div>
                   </label>
                 </div>
@@ -456,7 +474,7 @@
                       <th>Ad Soyad</th>
                       <th>E-posta</th>
                       <th>Telefon</th>
-                      <th>Bölümler</th>
+                      <th>Programlar</th>
                       <th>Rol</th>
                       <th>İşlem</th>
                     </tr>
@@ -476,7 +494,7 @@
               <form id="roleForm" class="course-form">
                 <label>
                   <span>Rol Adı</span>
-                  <input id="roleName" placeholder="Örnek: Bölüm Başkanı" required />
+                  <input id="roleName" placeholder="Örnek: Program Sorumlusu" required />
                 </label>
                 <div class="form-actions">
                   <button id="saveRoleButton" type="submit" class="primary-button">Rol Ekle</button>
@@ -524,6 +542,17 @@
           </section>
         </div>
       </main>
+    </div>
+
+    <div id="notificationModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+      <div class="modal-card">
+        <div id="notificationIcon" class="modal-icon success">✓</div>
+        <h3 id="notificationTitle" class="modal-title">Başarılı</h3>
+        <p id="notificationMessage" class="modal-message"></p>
+        <div class="modal-actions">
+          <button id="notificationClose" class="primary-button" type="button">Tamam</button>
+        </div>
+      </div>
     </div>
 
     <script src="/app.js"></script>
