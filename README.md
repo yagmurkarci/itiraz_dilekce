@@ -44,6 +44,13 @@ npx prisma studio
 ```sh
 node app.js
 ```
+The React frontend is located in the `client` directory and runs separately during development:
+```sh
+cd client
+npm run dev
+```
+The backend exposes the API on port `5000`; the frontend development server proxies API requests to it.
+
 📌 **Requirements**
 - Dependency	    Version
 - Node.js	        22.14.0

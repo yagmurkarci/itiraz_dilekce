@@ -134,3 +134,13 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# React client
+client/node_modules/
+client/dist/
+
+# Command Code local metadata
+.commandcode/
+
+# Temporary inspection files
+.tmp-inspect/
